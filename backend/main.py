@@ -109,6 +109,21 @@ def chat(payload: ChatMessage):
     return ChatResponse(reply=reply)
 
 
+@app.get("/chat/{session_id}/historial")
+def historial(session_id: str):
+    """
+    Mensajes de una conversación, para que el widget pueda reabrirla.
+    Solo los ve quien tiene el session_id (un código aleatorio que guarda
+    el navegador del cliente).
+    """
+    if not SESSION_RE.match(session_id):
+        raise HTTPException(status_code=400, detail="session_id inválido")
+    return [
+        {"remitente": m["remitente"], "mensaje": m["mensaje"]}
+        for m in database.mensajes_de_sesion(session_id)
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Panel de administrador
 # Se protege con una contraseña que pones en Render como variable de entorno
