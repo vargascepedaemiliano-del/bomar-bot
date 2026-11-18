@@ -1,55 +1,49 @@
 # BOMAR Bot
 
-Asistente de chat con IA (API de Claude) para bomar.mx. Es una copia adaptada del bot de GECTAM.
+Asistente de chat con IA (API de Claude) para bomar.mx. Atiende a los clientes, les arma un presupuesto con los precios del catálogo y deja todo ordenado en un panel para el dueño.
 
-Qué hace:
-- Explica los servicios de BOMAR (los saca de `backend/bomar_info.py`).
-- No da precios: cuando el cliente quiere cotización, le pide nombre, contacto y descripción del proyecto, y guarda la solicitud.
-- Panel de administrador en `/admin` para ver conversaciones y solicitudes.
-- El mismo servidor entrega el chat en `/widget.js`.
+## Qué hace
+
+- Explica los servicios de BOMAR (`backend/bomar_info.py`).
+- Registra a cada cliente por **nombre y teléfono**; si regresa, lo reconoce.
+- Arma la cotización con folio (`BOM-0001`) y calcula el presupuesto con los precios que se cargan en el panel. Los servicios sin precio quedan "por cotizar".
+- Avisa por **correo** al dueño en cuanto llega una cotización.
+- Palabra clave **NUEVA COTIZACIÓN** (o el botón del chat): empieza otra cotización en el mismo chat sin volver a pedir datos.
+- Panel en `/admin` (funciona en celular): cotizaciones con estado y notas, clientes con todas sus cotizaciones, conversaciones, servicios y precios, exportar a Excel (CSV).
+- Límite anti-abuso por IP y por conversación, y caché de prompts para bajar el costo de la API.
 
 ## Estructura
 
 ```
-bomar-bot/
-└── backend/
-    ├── main.py          # API (FastAPI): /chat, /widget.js, /admin
-    ├── cotizador.py     # lo que "piensa" el bot (prompt + herramienta registrar_solicitud)
-    ├── bomar_info.py    # toda la información de BOMAR (servicios, teléfono, correo)
-    ├── database.py      # SQLite: servicios, conversaciones, solicitudes
-    ├── requirements.txt
-    ├── .env.example
-    └── static/
-        ├── widget.js    # burbuja de chat
-        ├── admin.html   # panel de administrador
-        └── styles.css
+backend/
+├── main.py            # API (FastAPI): /chat, /widget.js, /admin y API del panel
+├── cotizador.py       # lógica del bot: prompt, herramientas, palabra clave
+├── database.py        # SQLite: servicios, clientes, sesiones, conversaciones, solicitudes
+├── notificaciones.py  # correo al dueño (SMTP)
+├── bomar_info.py      # información de la empresa
+├── requirements.txt
+├── .env.example       # todas las variables, explicadas
+└── static/
+    ├── widget.js      # burbuja de chat
+    └── admin.html     # panel del dueño
 ```
-
-## Variables de entorno (en Render)
-
-| Variable | Para qué |
-|---|---|
-| `ANTHROPIC_API_KEY` | API key de Anthropic |
-| `ADMIN_PASSWORD` | contraseña del panel `/admin` |
-| `ANTHROPIC_MODEL` | opcional, por defecto `claude-sonnet-5-5` |
-| `ALLOWED_ORIGINS` | opcional, por defecto `https://bomar.mx,https://www.bomar.mx` |
 
 ## Render
 
+- Plan: Starter (siempre encendido) + **Disk** de 1 GB montado en `/var/data`
 - Root Directory: `backend`
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Variables: ver `backend/.env.example` (mínimo `ANTHROPIC_API_KEY`, `ADMIN_PASSWORD`, `DB_PATH`)
 
 ## WordPress (Divi)
 
-Divi → Opciones del tema → Integración → "Añadir código al final de <body>":
+Divi → Opciones del tema → Integración → "Agregar código al <body>":
 
 ```html
 <script src="https://bomar-bot.onrender.com/widget.js" defer></script>
 ```
 
-Cualquier botón del sitio puede abrir el chat si tiene el atributo `data-open-chat`.
+## Precios
 
-## Cambiar la información de BOMAR
-
-Edita `backend/bomar_info.py`, guarda, haz commit y push. Render vuelve a desplegar solo.
+Se cargan en el panel → **Servicios y precios**. Tipos: sin precio (lo cotiza un ingeniero), precio fijo, o precio "desde". El bot los usa de inmediato.

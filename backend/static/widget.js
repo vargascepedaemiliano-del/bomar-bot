@@ -107,7 +107,8 @@
   }
 
   /* ---------- Construcción del HTML ---------- */
-  var ICO_NUEVO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+  var ICO_NUEVO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14h6"/></svg>';
+  var PALABRA_CLAVE = "NUEVA COTIZACIÓN";
   var ICO_HIST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>';
 
   var root = document.createElement("div");
@@ -121,7 +122,7 @@
       '<div class="gc-sub">Ingeniería, construcción y consultoría</div></div>' +
       '<div class="gc-acts">' +
         '<button class="gc-ico gc-btn-hist" type="button" aria-pressed="false" aria-label="Conversaciones anteriores" title="Conversaciones anteriores">' + ICO_HIST + '</button>' +
-        '<button class="gc-ico gc-btn-new" type="button" aria-label="Nueva conversación" title="Nueva conversación">' + ICO_NUEVO + '</button>' +
+        '<button class="gc-ico gc-btn-new" type="button" aria-label="Nueva cotización" title="Nueva cotización">' + ICO_NUEVO + '</button>' +
         '<button class="gc-close" type="button" aria-label="Cerrar chat">&times;</button>' +
       '</div></header>' +
       '<div class="gc-msgs" aria-live="polite"></div>' +
@@ -175,12 +176,22 @@
     return t;
   }
 
+  function chipNueva() {
+    var w = document.createElement("div");
+    w.className = "gc-chips";
+    var bt = document.createElement("button");
+    bt.type = "button"; bt.className = "gc-chip"; bt.textContent = "+ Nueva cotización";
+    bt.addEventListener("click", function () { w.remove(); nuevaCotizacion(); });
+    w.appendChild(bt);
+    msgs.appendChild(w); scrollDown();
+  }
+
   function bienvenida() {
     msgs.innerHTML = "";
-    addMsg("¡Hola! Soy el asistente virtual de BOMAR. Puedo explicarte nuestros servicios o ayudarte a solicitar una cotización. ¿Qué necesitas?", "bot");
+    addMsg("¡Hola! Soy el asistente virtual de BOMAR. Puedo explicarle nuestros servicios y prepararle una cotización. ¿En qué le podemos ayudar?", "bot");
     chipsEl = document.createElement("div");
     chipsEl.className = "gc-chips";
-    ["¿Qué servicios ofrecen?", "Quiero una cotización", "Código de Red"].forEach(function (txt) {
+    ["Quiero una cotización", "¿Qué servicios ofrecen?", "Código de Red"].forEach(function (txt) {
       var b = document.createElement("button");
       b.type = "button"; b.className = "gc-chip"; b.textContent = txt;
       b.addEventListener("click", function () { enviar(txt); });
@@ -252,6 +263,14 @@
     });
   }
 
+  /* Nueva cotización en el MISMO chat: el bot empieza de cero pero conserva al cliente */
+  function nuevaCotizacion() {
+    if (busy) return;
+    verHistorial(false);
+    if (!buscarChat(actual)) { mostrarChat(actual); return; }  // chat vacío: no hace falta
+    enviar(PALABRA_CLAVE);
+  }
+
   function nuevaConversacion() {
     if (busy) return;
     actual = nuevoId();
@@ -303,7 +322,10 @@
       if (!res.ok) throw new Error("http " + res.status);
       var data = await res.json();
       typing.remove();
-      if (cargado === id) addMsg(data.reply, "bot");
+      if (cargado === id) {
+        addMsg(data.reply, "bot");
+        if (/BOM-\d{4,}/.test(data.reply)) chipNueva();
+      }
     } catch (err) {
       typing.remove();
       if (cargado === id) addMsg("No pude responder en este momento. Intenta de nuevo en unos minutos, o escríbenos a ventas@bomar.mx o llámanos al 818 086 0734.", "bot");
@@ -318,7 +340,7 @@
 
   fab.addEventListener("click", open);
   closeBtn.addEventListener("click", close);
-  btnNuevo.addEventListener("click", nuevaConversacion);
+  btnNuevo.addEventListener("click", nuevaCotizacion);
   btnHist.addEventListener("click", function () {
     verHistorial(btnHist.getAttribute("aria-pressed") !== "true");
   });
@@ -333,5 +355,5 @@
     if (el) { e.preventDefault(); open(); }
   });
 
-  window.BomarChat = { open: open, close: close, nueva: nuevaConversacion };
+  window.BomarChat = { open: open, close: close, nuevaCotizacion: nuevaCotizacion, nuevaConversacion: nuevaConversacion };
 })();

@@ -4,228 +4,524 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Panel de administrador | BOMAR Bot</title>
+<meta name="theme-color" content="#043074">
+<title>Panel BOMAR · Cotizaciones del chat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  body{background-image:none;font-size:16px}
-  .ad{max-width:1100px;margin:0 auto;padding:24px}
-  .ad-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
-  .ad-top h1{font-size:1.7rem}
-  .tabs{display:flex;gap:6px;border-bottom:2px solid var(--tinta);margin-bottom:22px;flex-wrap:wrap}
-  .tab{font:inherit;font-weight:600;background:transparent;border:0;padding:10px 16px;cursor:pointer;color:var(--texto-suave);border-radius:8px 8px 0 0}
-  .tab[aria-selected="true"]{background:var(--tinta);color:#fff}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
-  .stat{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:18px}
-  .stat strong{display:block;font-family:"Bricolage Grotesque",sans-serif;font-size:2rem;line-height:1.1}
-  .stat span{color:var(--texto-suave);font-size:.95rem}
-  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--linea);border-radius:12px;overflow:hidden}
-  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--linea);vertical-align:top;font-size:.95rem}
-  th{background:#e9eeec;font-weight:700}
-  tr.click{cursor:pointer}
-  tr.click:hover td{background:#f1f5f3}
-  .scroll{overflow-x:auto}
-  .login{max-width:380px;margin:12vh auto;background:#fff;border:2px solid var(--tinta);border-radius:14px;padding:28px;box-shadow:8px 8px 0 var(--tinta)}
-  .login label,.f label{display:block;font-weight:600;margin:14px 0 6px}
-  input[type=text],input[type=password],input[type=number],select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;background:#fff;color:var(--tinta)}
-  .err{color:#b3261e;margin-top:12px;font-weight:600;min-height:1.4em}
-  .hilo{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:9px;margin-top:14px}
-  .m{max-width:78%;padding:9px 13px;border-radius:12px;white-space:pre-wrap;font-size:.95rem}
-  .m small{display:block;color:inherit;opacity:.65;font-size:.78rem;margin-top:4px}
-  .m.cliente{align-self:flex-end;background:var(--tinta);color:#fff}
-  .m.bot{align-self:flex-start;background:var(--papel);border:1px solid var(--linea)}
-  .f{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:18px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 16px;align-items:end}
-  .f .acc{display:flex;gap:10px;grid-column:1/-1;margin-top:14px;flex-wrap:wrap}
-  .chk{display:flex;align-items:center;gap:8px;margin-top:14px}
-  .chk input{width:auto}
-  .mini{font:inherit;font-weight:600;font-size:.88rem;padding:5px 11px;border-radius:7px;border:1px solid var(--tinta);background:#fff;cursor:pointer;color:var(--tinta)}
-  .mini:hover{background:var(--tinta);color:#fff}
-  .mini.rojo{border-color:#b3261e;color:#b3261e}.mini.rojo:hover{background:#b3261e;color:#fff}
-  .vacio{padding:28px;text-align:center;color:var(--texto-suave);background:#fff;border:1px dashed var(--linea);border-radius:12px}
-  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.8rem;font-weight:600;background:#e9eeec}
-  .pill.si{background:#d6efe0;color:#14532d}
-  pre.det{margin:0;white-space:pre-wrap;font-family:inherit;font-size:.9rem;color:var(--texto-suave)}
+  :root{--azul:#043074;--azul2:#28508f;--rojo:#ed1c24;--fondo:#f3f6fb;--linea:#d8e0ec;--texto:#0f1d33;--suave:#56647c;--verde:#1f9d55;--blanco:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Montserrat,Helvetica,Arial,sans-serif;background:var(--fondo);color:var(--texto);font-size:15px;line-height:1.5}
+  button,input,select,textarea{font:inherit;color:inherit}
+  a{color:var(--azul2)}
+  :focus-visible{outline:3px solid var(--rojo);outline-offset:2px}
   [hidden]{display:none!important}
+
+  /* Acceso */
+  .login{max-width:380px;margin:12vh auto;padding:0 18px}
+  .login .caja{background:#fff;border-radius:14px;padding:28px;box-shadow:0 10px 30px rgba(4,48,116,.12)}
+  .login h1{margin:0 0 4px;font-size:1.4rem;color:var(--azul)}
+  .login p{margin:0 0 18px;color:var(--suave);font-size:.92rem}
+  label{display:block;font-weight:600;font-size:.88rem;margin:12px 0 6px}
+  input[type=text],input[type=password],input[type=number],input[type=search],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:9px;background:#fff}
+  textarea{resize:vertical;min-height:70px}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.9rem}
+  .chk input{width:18px;height:18px}
+  .err{color:#b3261e;font-weight:600;font-size:.9rem;min-height:1.3em;margin-top:10px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--azul);background:#fff;color:var(--azul);font-weight:600;font-size:.9rem;padding:9px 14px;border-radius:9px;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .btn:hover{background:var(--azul);color:#fff}
+  .btn.primario{background:var(--rojo);border-color:var(--rojo);color:#fff}
+  .btn.primario:hover{background:#c8141b}
+  .btn.azul{background:var(--azul);color:#fff}
+  .btn.verde{background:var(--verde);border-color:var(--verde);color:#fff}
+  .btn.verde:hover{background:#17804a}
+  .btn.chico{padding:6px 10px;font-size:.82rem}
+  .btn.peligro{border-color:#b3261e;color:#b3261e}
+  .btn.peligro:hover{background:#b3261e;color:#fff}
+  .btn.ancho{width:100%}
+
+  /* Estructura */
+  .top{position:sticky;top:0;z-index:20;background:var(--azul);color:#fff}
+  .top .fila{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .marca{font-weight:800;letter-spacing:.02em;font-size:1.05rem}
+  .marca small{display:block;font-weight:500;font-size:.75rem;opacity:.8;letter-spacing:0}
+  .top .btn{border-color:rgba(255,255,255,.5);background:transparent;color:#fff}
+  .top .btn:hover{background:rgba(255,255,255,.15)}
+  .tabs{max-width:1100px;margin:0 auto;padding:0 10px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .tab{border:0;background:transparent;color:rgba(255,255,255,.75);font-weight:600;padding:10px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  .tab[aria-selected=true]{color:#fff;border-bottom-color:var(--rojo)}
+  .badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:var(--rojo);color:#fff;font-size:.75rem;line-height:20px;text-align:center}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:#fff;border-radius:12px;padding:14px;border:1px solid var(--linea)}
+  .stat b{display:block;font-size:1.6rem;color:var(--azul);line-height:1.15}
+  .stat span{color:var(--suave);font-size:.82rem}
+  .stat.alerta b{color:var(--rojo)}
+
+  .barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .barra input[type=search]{flex:1;min-width:200px}
+  .filtros{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:thin}
+  .filtro{border:1px solid var(--linea);background:#fff;border-radius:999px;padding:6px 12px;font-size:.85rem;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--suave)}
+  .filtro[aria-pressed=true]{background:var(--azul);border-color:var(--azul);color:#fff}
+
+  .lista{display:grid;gap:12px}
+  .card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:16px}
+  .card.nueva{border-left:5px solid var(--rojo)}
+  .cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+  .folio{font-weight:800;color:var(--azul);font-size:1.05rem}
+  .fecha{color:var(--suave);font-size:.82rem}
+  .nombre{font-weight:700;font-size:1.08rem;margin:8px 0 0}
+  .nombre a{color:inherit;text-decoration:none}
+  .nombre a:hover{text-decoration:underline}
+  .meta{color:var(--suave);font-size:.88rem}
+  .acciones{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .bloque{margin-top:10px}
+  .bloque h4{margin:0 0 3px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--suave)}
+  .bloque p,.bloque pre{margin:0;white-space:pre-wrap;font-family:inherit}
+  .total{margin-top:10px;padding:10px 12px;background:var(--fondo);border-radius:10px;font-weight:700}
+  .total small{display:block;font-weight:500;color:var(--suave)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700;text-transform:capitalize}
+  .pill.nueva{background:#fde3e4;color:#a3121a}
+  .pill.contactado{background:#e1ecff;color:#1a428a}
+  .pill.cotizado{background:#fff1d6;color:#8a5a00}
+  .pill.cerrada{background:#d9f3e5;color:#14532d}
+  .pill.descartada{background:#eceff3;color:#56647c}
+  .gestion{display:grid;grid-template-columns:180px 1fr;gap:10px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--linea);align-items:start}
+  .gestion .acc{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+  .ok{color:var(--verde);font-weight:600;font-size:.85rem}
+  .vacio{text-align:center;color:var(--suave);background:#fff;border:1px dashed var(--linea);border-radius:14px;padding:30px 16px}
+
+  .hilo{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid var(--linea);border-radius:14px;padding:14px}
+  .m{max-width:82%;padding:9px 12px;border-radius:12px;white-space:pre-wrap;font-size:.93rem}
+  .m small{display:block;opacity:.65;font-size:.74rem;margin-top:3px}
+  .m.cliente{align-self:flex-end;background:var(--azul);color:#fff;border-bottom-right-radius:4px}
+  .m.bot{align-self:flex-start;background:var(--fondo);border:1px solid var(--linea);border-bottom-left-radius:4px}
+
+  .form{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:16px;margin-bottom:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 14px}
+  .form .ancho{grid-column:1/-1}
+  .form .acc{grid-column:1/-1;display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .precio{font-weight:700;color:var(--azul)}
+  .inactivo{opacity:.55}
+  .aviso{background:#fff8e1;border:1px solid #f1d27a;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.9rem}
+  .aviso.bien{background:#e8f6ee;border-color:#9fd8b6}
+
+  @media (max-width:640px){
+    main{padding:12px}
+    .gestion{grid-template-columns:1fr}
+    .top .btn span{display:none}
+    .m{max-width:92%}
+  }
 </style>
 </head>
 <body>
 
-<!-- Pantalla de acceso -->
 <div id="login" class="login">
-  <h1 style="font-size:1.6rem">Acceso administrador</h1>
-  <form id="f-login">
-    <label for="pw">Contraseña</label>
-    <input id="pw" type="password" autocomplete="current-password" required>
-    <div class="err" id="err" role="alert"></div>
-    <button class="btn btn-senal" type="submit" style="margin-top:8px;width:100%">Entrar</button>
-  </form>
-  <p class="nota"><a href="https://bomar.mx">Volver a bomar.mx</a></p>
+  <div class="caja">
+    <h1>Panel de BOMAR</h1>
+    <p>Clientes y cotizaciones que llegan por el chat de bomar.mx</p>
+    <form id="f-login">
+      <label for="pw">Contraseña</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <div class="chk"><input id="recordar" type="checkbox" checked><label for="recordar" style="margin:0;font-weight:500">Recordarme en este dispositivo</label></div>
+      <div class="err" id="err" role="alert"></div>
+      <button class="btn primario ancho" type="submit">Entrar</button>
+    </form>
+  </div>
 </div>
 
-<!-- Panel -->
-<div id="panel" class="ad" hidden>
-  <div class="ad-top">
-    <h1>Panel de administrador</h1>
-    <div><a class="btn" href="https://bomar.mx" style="padding:8px 14px">Ver sitio</a>
-      <button class="btn" id="salir" type="button" style="padding:8px 14px">Salir</button></div>
-  </div>
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" data-t="resumen" aria-selected="true">Resumen</button>
-    <button class="tab" role="tab" data-t="conv" aria-selected="false">Conversaciones</button>
-    <button class="tab" role="tab" data-t="cot" aria-selected="false">Solicitudes</button>
-    <button class="tab" role="tab" data-t="cat" aria-selected="false">Servicios</button>
-  </div>
-  <div id="vista"></div>
+<div id="app" hidden>
+  <header class="top">
+    <div class="fila">
+      <div class="marca">BOMAR <small>Panel del chat</small></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn chico" id="exportar" type="button" title="Descargar todas las cotizaciones en Excel (CSV)">⬇ <span>Exportar</span></button>
+        <button class="btn chico" id="salir" type="button">Salir</button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="cot" aria-selected="true">Cotizaciones <span class="badge" id="b-nuevas" hidden></span></button>
+      <button class="tab" role="tab" data-t="cli" aria-selected="false">Clientes</button>
+      <button class="tab" role="tab" data-t="conv" aria-selected="false">Conversaciones</button>
+      <button class="tab" role="tab" data-t="pre" aria-selected="false">Servicios y precios</button>
+      <button class="tab" role="tab" data-t="aj" aria-selected="false">Ajustes</button>
+    </nav>
+  </header>
+  <main id="vista" aria-live="polite"></main>
 </div>
 
 <script>
-  // Dirección del backend (la misma que usa el chat)
-  const BACKEND = ""; // el panel lo sirve el mismo servidor del bot
-
-  const $ = (s) => document.querySelector(s);
-  let pw = "";
-  try { pw = sessionStorage.getItem("bomar_admin") || ""; } catch (e) {}
-
-  // Convierte texto en HTML seguro (evita que un mensaje de un cliente meta código)
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const dinero = (n) => n == null ? "—" : "$" + Number(n).toLocaleString("es-MX", {minimumFractionDigits:2, maximumFractionDigits:2});
-  const fecha = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString("es-MX", {dateStyle:"short", timeStyle:"short"}); };
+  const dinero = (n) => n == null ? "Por cotizar" : "$" + Number(n).toLocaleString("es-MX", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " MXN";
+  const fecha = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString("es-MX", {dateStyle: "medium", timeStyle: "short"}); };
+  const telBonito = (t) => (t && t.length === 10) ? t.replace(/(\d{2})(\d{4})(\d{4})/, "$1 $2 $3") : (t || "");
+  const wa = (t) => "https://wa.me/" + (t.length === 10 ? "52" + t : t);
+  const ESTADOS = [["nueva","Nueva"],["contactado","Contactado"],["cotizado","Cotizado"],["cerrada","Cerrada (ganada)"],["descartada","Descartada"]];
+
+  const vista = $("#vista");
+  let pw = "";
+  try { pw = localStorage.getItem("bomar_admin") || sessionStorage.getItem("bomar_admin") || ""; } catch (e) {}
+  let tabActual = "cot";
+  let filtroEstado = "";
+  let textoBuscar = "";
 
   async function api(ruta, opciones = {}) {
-    const res = await fetch(BACKEND + ruta, {
+    const res = await fetch(ruta, {
       ...opciones,
-      headers: { "Content-Type": "application/json", "X-Admin-Password": pw, ...(opciones.headers || {}) },
+      headers: {"Content-Type": "application/json", "X-Admin-Password": pw, ...(opciones.headers || {})},
     });
-    if (res.status === 401) { cerrarSesion(); throw new Error("Contraseña incorrecta."); }
+    if (res.status === 401) { salir(); throw new Error("La contraseña ya no es válida. Vuelve a entrar."); }
     if (!res.ok) {
       let msg = "Error " + res.status;
       try { const j = await res.json(); if (j.detail) msg = typeof j.detail === "string" ? j.detail : "Datos inválidos."; } catch (e) {}
       throw new Error(msg);
     }
-    return res.json();
+    return res;
+  }
+  const getJSON = async (ruta) => (await api(ruta)).json();
+
+  function guardarPw(recordar) {
+    try {
+      localStorage.removeItem("bomar_admin"); sessionStorage.removeItem("bomar_admin");
+      (recordar ? localStorage : sessionStorage).setItem("bomar_admin", pw);
+    } catch (e) {}
   }
 
-  function cerrarSesion() {
-    pw = ""; try { sessionStorage.removeItem("bomar_admin"); } catch (e) {}
-    $("#panel").hidden = true; $("#login").hidden = false;
+  function salir() {
+    pw = "";
+    try { localStorage.removeItem("bomar_admin"); sessionStorage.removeItem("bomar_admin"); } catch (e) {}
+    $("#app").hidden = true; $("#login").hidden = false; $("#pw").value = ""; $("#pw").focus();
   }
 
   $("#f-login").addEventListener("submit", async (e) => {
     e.preventDefault();
     pw = $("#pw").value;
-    $("#err").textContent = "Verificando… si el servidor estaba dormido puede tardar hasta un minuto.";
+    $("#err").textContent = "Verificando…";
     try {
       await api("/admin/resumen");
-      try { sessionStorage.setItem("bomar_admin", pw); } catch (e) {}
+      guardarPw($("#recordar").checked);
       $("#err").textContent = "";
       entrar();
     } catch (err) {
       $("#err").textContent = err.message === "Failed to fetch" ? "No se pudo conectar con el servidor." : err.message;
     }
   });
+  $("#salir").addEventListener("click", salir);
 
-  $("#salir").addEventListener("click", cerrarSesion);
-
-  document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", x === b));
-    mostrar(b.dataset.t);
-  }));
-
-  function entrar() { $("#login").hidden = true; $("#panel").hidden = false; mostrar("resumen"); }
-
-  async function mostrar(t) {
-    const v = $("#vista");
-    v.innerHTML = '<p class="vacio">Cargando…</p>';
+  $("#exportar").addEventListener("click", async () => {
     try {
-      if (t === "resumen") await vistaResumen(v);
-      if (t === "conv") await vistaConversaciones(v);
-      if (t === "cot") await vistaCotizaciones(v);
-      if (t === "cat") await vistaCatalogo(v);
-    } catch (err) { v.innerHTML = '<p class="vacio">' + esc(err.message) + "</p>"; }
+      const blob = await (await api("/admin/export.csv")).blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "cotizaciones-bomar-" + new Date().toISOString().slice(0, 10) + ".csv";
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (err) { alert(err.message); }
+  });
+
+  $$(".tab").forEach((b) => b.addEventListener("click", () => irA(b.dataset.t)));
+
+  function irA(t, ...args) {
+    tabActual = t;
+    $$(".tab").forEach((x) => x.setAttribute("aria-selected", x.dataset.t === t));
+    window.scrollTo({top: 0});
+    mostrar(t, ...args);
   }
 
-  async function vistaResumen(v) {
-    const r = await api("/admin/resumen");
-    v.innerHTML = '<div class="stats">' +
-      '<div class="stat"><strong>' + r.sesiones + '</strong><span>Conversaciones</span></div>' +
-      '<div class="stat"><strong>' + r.mensajes_cliente + '</strong><span>Mensajes de clientes</span></div>' +
-      '<div class="stat"><strong>' + r.cotizaciones + '</strong><span>Solicitudes de cotización</span></div></div>';
+  async function mostrar(t, ...args) {
+    vista.innerHTML = '<p class="vacio">Cargando…</p>';
+    try {
+      if (t === "cot") await vistaCotizaciones();
+      if (t === "cli") await (args[0] ? vistaCliente(args[0]) : vistaClientes());
+      if (t === "conv") await (args[0] ? vistaHilo(args[0]) : vistaConversaciones());
+      if (t === "pre") await vistaPrecios();
+      if (t === "aj") await vistaAjustes();
+    } catch (err) { vista.innerHTML = '<p class="vacio">' + esc(err.message) + "</p>"; }
   }
 
-  async function vistaConversaciones(v, abierta) {
-    if (abierta) {
-      const m = await api("/admin/sesiones/" + encodeURIComponent(abierta));
-      v.innerHTML = '<button class="mini" id="atras">Volver a la lista</button>' +
-        '<p class="nota">Conversación ' + esc(abierta) + '</p><div class="hilo">' +
-        m.map((x) => '<div class="m ' + esc(x.remitente) + '">' + esc(x.mensaje) + '<small>' + (x.remitente === "cliente" ? "Cliente" : "Asistente") + " · " + fecha(x.fecha) + "</small></div>").join("") + "</div>";
-      $("#atras").onclick = () => vistaConversaciones(v);
-      return;
+  function entrar() {
+    $("#login").hidden = true; $("#app").hidden = false;
+    irA("cot");
+    actualizarBadge();
+  }
+
+  async function actualizarBadge() {
+    try {
+      const r = await getJSON("/admin/resumen");
+      const b = $("#b-nuevas");
+      b.hidden = !r.nuevas; b.textContent = r.nuevas;
+      document.title = (r.nuevas ? "(" + r.nuevas + ") " : "") + "Panel BOMAR · Cotizaciones del chat";
+      return r;
+    } catch (e) { return null; }
+  }
+  // Revisa cada minuto si llegaron cotizaciones nuevas
+  setInterval(() => { if (pw && !$("#app").hidden) actualizarBadge(); }, 60000);
+
+  /* ---------------- Tarjeta de contacto ---------------- */
+  function botonesContacto(nombre, tel, correo, folio) {
+    let h = '<div class="acciones">';
+    if (tel) {
+      h += '<a class="btn azul" href="tel:' + esc(tel) + '">📞 Llamar</a>';
+      const texto = encodeURIComponent("Hola " + (nombre || "").split(" ")[0] + ", le saluda BOMAR" + (folio ? " sobre su solicitud " + folio : "") + ".");
+      h += '<a class="btn verde" target="_blank" rel="noopener" href="' + esc(wa(tel)) + "?text=" + texto + '">WhatsApp</a>';
     }
-    const s = await api("/admin/sesiones");
-    if (!s.length) { v.innerHTML = '<p class="vacio">Todavía no hay conversaciones. Aparecerán aquí cuando los clientes usen el chat.</p>'; return; }
-    v.innerHTML = '<div class="scroll"><table><thead><tr><th>Inicio</th><th>Último mensaje</th><th>Mensajes</th><th>Empezó con</th><th>Solicitud</th></tr></thead><tbody>' +
-      s.map((x) => '<tr class="click" data-id="' + esc(x.session_id) + '"><td>' + fecha(x.inicio) + "</td><td>" + fecha(x.ultimo) + "</td><td>" + x.mensajes + "</td><td>" + esc((x.primer_mensaje || "").slice(0, 70)) + '</td><td>' + (x.cotizaciones ? '<span class="pill si">Sí</span>' : '<span class="pill">No</span>') + "</td></tr>").join("") +
-      "</tbody></table></div><p class=\"nota\">Haz clic en una fila para ver la conversación completa.</p>";
-    v.querySelectorAll("tr.click").forEach((tr) => tr.addEventListener("click", () => vistaConversaciones(v, tr.dataset.id)));
+    if (correo) h += '<a class="btn" href="mailto:' + esc(correo) + "?subject=" + encodeURIComponent("Cotización " + (folio || "") + " · BOMAR") + '">✉ Correo</a>';
+    return h + "</div>";
   }
 
-  async function vistaCotizaciones(v) {
-    const c = await api("/admin/cotizaciones");
-    if (!c.length) { v.innerHTML = '<p class="vacio">Todavía no hay solicitudes. Se guardan cuando un cliente deja sus datos en el chat.</p>'; return; }
-    v.innerHTML = '<div class="scroll"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Contacto</th><th>Detalle</th><th></th></tr></thead><tbody>' +
-      c.map((x) => "<tr><td>" + fecha(x.fecha) + "</td><td>" + esc(x.cliente_nombre) + "</td><td>" + esc(x.cliente_contacto) + "</td><td><pre class=\"det\">" + esc(x.resumen) + "</pre></td><td>" + '<button class="mini" data-s="' + esc(x.session_id) + '">Ver chat</button></td></tr>').join("") +
-      "</tbody></table></div>";
-    v.querySelectorAll("button[data-s]").forEach((b) => b.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", x.dataset.t === "conv"));
-      vistaConversaciones(v, b.dataset.s).catch((e) => (v.innerHTML = '<p class="vacio">' + esc(e.message) + "</p>"));
+  function tarjetaCotizacion(s) {
+    const opciones = ESTADOS.map(([v, t]) => '<option value="' + v + '"' + (s.estado === v ? " selected" : "") + ">" + t + "</option>").join("");
+    let totalTxt = dinero(s.total);
+    if (s.total != null && s.total_es_estimado) totalTxt = "Desde " + totalTxt;
+    return '<article class="card' + (s.estado === "nueva" ? " nueva" : "") + '" data-id="' + s.id + '">' +
+      '<div class="cab"><div><div class="folio">' + esc(s.folio) + '</div><div class="fecha">' + fecha(s.creado) + "</div></div>" +
+      '<span class="pill ' + esc(s.estado) + '">' + esc(s.estado) + "</span></div>" +
+      '<div class="nombre"><a href="#" data-cliente="' + s.cliente_id + '">' + esc(s.cliente_nombre) + "</a></div>" +
+      '<div class="meta">' + esc(telBonito(s.cliente_telefono)) + (s.cliente_empresa ? " · " + esc(s.cliente_empresa) : "") + (s.cliente_correo ? " · " + esc(s.cliente_correo) : "") + "</div>" +
+      botonesContacto(s.cliente_nombre, s.cliente_telefono, s.cliente_correo, s.folio) +
+      '<div class="bloque"><h4>Servicio</h4><p>' + esc(s.servicio || "—") + "</p></div>" +
+      (s.ubicacion ? '<div class="bloque"><h4>Ubicación</h4><p>' + esc(s.ubicacion) + "</p></div>" : "") +
+      '<div class="bloque"><h4>Lo que necesita</h4><p>' + esc(s.descripcion || "—") + "</p></div>" +
+      '<div class="bloque"><h4>Presupuesto</h4><pre>' + esc(s.detalle || "—") + "</pre></div>" +
+      '<div class="total">' + esc(totalTxt) + (s.requiere_revision ? "<small>Tiene conceptos sin precio: falta tu cotización</small>" : "") + (s.total != null ? "<small>Más IVA si aplica · presupuesto preliminar</small>" : "") + "</div>" +
+      '<div class="gestion">' +
+        '<div><label for="e' + s.id + '">Estado</label><select id="e' + s.id + '" class="sel-estado">' + opciones + "</select></div>" +
+        '<div><label for="n' + s.id + '">Notas internas</label><textarea id="n' + s.id + '" class="notas" placeholder="Ej. Le llamé el martes, pidió visita técnica">' + esc(s.notas) + "</textarea></div>" +
+        '<div class="acc"><div style="display:flex;gap:8px;align-items:center"><button class="btn chico primario guardar" type="button">Guardar</button><span class="ok" hidden>Guardado</span></div>' +
+        '<div style="display:flex;gap:8px">' + (s.session_id ? '<button class="btn chico ver-chat" type="button" data-s="' + esc(s.session_id) + '">Ver conversación</button>' : "") +
+        '<button class="btn chico peligro borrar" type="button">Borrar</button></div></div>' +
+      "</div></article>";
+  }
+
+  function conectarTarjetas(cont, recargar) {
+    $$("[data-cliente]", cont).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); irA("cli", a.dataset.cliente); }));
+    $$(".ver-chat", cont).forEach((b) => b.addEventListener("click", () => irA("conv", b.dataset.s)));
+    $$("article.card[data-id]", cont).forEach((card) => {
+      const id = card.dataset.id;
+      const guardar = async () => {
+        const estado = $(".sel-estado", card).value;
+        const notas = $(".notas", card).value;
+        try {
+          await api("/admin/solicitudes/" + id, {method: "PATCH", body: JSON.stringify({estado, notas})});
+          const ok = $(".ok", card); ok.hidden = false; setTimeout(() => ok.hidden = true, 2000);
+          const pill = $(".pill", card); pill.className = "pill " + estado; pill.textContent = estado;
+          card.classList.toggle("nueva", estado === "nueva");
+          actualizarBadge();
+        } catch (err) { alert(err.message); }
+      };
+      $(".guardar", card).addEventListener("click", guardar);
+      $(".sel-estado", card).addEventListener("change", guardar);
+      $(".borrar", card).addEventListener("click", async () => {
+        if (!confirm("¿Borrar esta cotización? No se puede deshacer.")) return;
+        try { await api("/admin/solicitudes/" + id, {method: "DELETE"}); recargar(); actualizarBadge(); }
+        catch (err) { alert(err.message); }
+      });
+    });
+  }
+
+  /* ---------------- Cotizaciones ---------------- */
+  async function vistaCotizaciones() {
+    const r = await actualizarBadge() || {};
+    vista.innerHTML =
+      '<div class="stats">' +
+        '<div class="stat' + (r.nuevas ? " alerta" : "") + '"><b>' + (r.nuevas ?? 0) + '</b><span>Nuevas sin atender</span></div>' +
+        '<div class="stat"><b>' + (r.solicitudes_hoy ?? 0) + '</b><span>Cotizaciones hoy</span></div>' +
+        '<div class="stat"><b>' + (r.solicitudes_mes ?? 0) + '</b><span>Este mes</span></div>' +
+        '<div class="stat"><b>' + (r.clientes ?? 0) + '</b><span>Clientes registrados</span></div>' +
+      "</div>" +
+      '<div class="barra"><input type="search" id="buscar" placeholder="Buscar por folio, nombre, teléfono, empresa o servicio" value="' + esc(textoBuscar) + '"></div>' +
+      '<div class="filtros" role="group" aria-label="Filtrar por estado">' +
+        [["", "Todas"]].concat(ESTADOS).map(([v, t]) => '<button class="filtro" type="button" data-e="' + v + '" aria-pressed="' + (filtroEstado === v) + '">' + t.replace(" (ganada)", "") + "</button>").join("") +
+      "</div>" +
+      '<div class="lista" id="lista"><p class="vacio">Cargando…</p></div>';
+
+    const cargar = async () => {
+      const q = new URLSearchParams({estado: filtroEstado, buscar: textoBuscar});
+      const lista = await getJSON("/admin/solicitudes?" + q);
+      const cont = $("#lista");
+      if (!lista.length) {
+        cont.innerHTML = '<p class="vacio">' + (textoBuscar || filtroEstado ? "No hay cotizaciones con ese filtro." : "Todavía no hay cotizaciones. Aparecerán aquí en cuanto un cliente deje la suya en el chat.") + "</p>";
+        return;
+      }
+      cont.innerHTML = lista.map(tarjetaCotizacion).join("");
+      conectarTarjetas(cont, cargar);
+    };
+    $$(".filtro").forEach((b) => b.addEventListener("click", () => {
+      filtroEstado = b.dataset.e;
+      $$(".filtro").forEach((x) => x.setAttribute("aria-pressed", x === b));
+      cargar().catch((e) => $("#lista").innerHTML = '<p class="vacio">' + esc(e.message) + "</p>");
     }));
+    let t;
+    $("#buscar").addEventListener("input", (e) => {
+      clearTimeout(t);
+      t = setTimeout(() => { textoBuscar = e.target.value.trim(); cargar().catch(() => {}); }, 350);
+    });
+    await cargar();
   }
 
-  async function vistaCatalogo(v) {
-    const s = await api("/admin/servicios");
-    v.innerHTML =
-      '<form class="f" id="fs"><input type="hidden" id="sid">' +
-      '<div><label for="sn">Nombre</label><input id="sn" type="text" maxlength="120" required></div>' +
-      '<div><label for="sd">Descripción</label><input id="sd" type="text" maxlength="500"></div>' +
-      '<div class="acc"><button class="btn btn-senal" type="submit" id="guardar">Agregar servicio</button><button class="btn" type="button" id="cancelar" hidden>Cancelar edición</button></div>' +
-      '<div class="err" id="serr" style="grid-column:1/-1"></div></form>' +
-      '<div class="scroll"><table><thead><tr><th>ID</th><th>Servicio</th><th></th></tr></thead><tbody>' +
-      s.map((x) => "<tr><td>" + x.id + "</td><td><strong>" + esc(x.nombre) + "</strong><br><span class=\"nota\" style=\"margin:0\">" + esc(x.descripcion) + '</span></td><td><button class="mini" data-e="' + x.id + '">Editar</button> <button class="mini rojo" data-b="' + x.id + '">Borrar</button></td></tr>').join("") +
-      "</tbody></table></div>";
+  /* ---------------- Clientes ---------------- */
+  async function vistaClientes() {
+    vista.innerHTML =
+      '<div class="barra"><input type="search" id="bcli" placeholder="Buscar cliente por nombre, teléfono, empresa o correo"></div>' +
+      '<div class="lista" id="lcli"><p class="vacio">Cargando…</p></div>';
+    const cargar = async (b = "") => {
+      const lista = await getJSON("/admin/clientes?" + new URLSearchParams({buscar: b}));
+      const cont = $("#lcli");
+      if (!lista.length) { cont.innerHTML = '<p class="vacio">' + (b ? "Sin resultados." : "Todavía no hay clientes registrados.") + "</p>"; return; }
+      cont.innerHTML = lista.map((c) =>
+        '<article class="card">' +
+          '<div class="cab"><div class="nombre" style="margin:0"><a href="#" data-cliente="' + c.id + '">' + esc(c.nombre) + "</a></div>" +
+          (c.pendientes ? '<span class="pill nueva">' + c.pendientes + " nueva" + (c.pendientes > 1 ? "s" : "") + "</span>" : "") + "</div>" +
+          '<div class="meta">' + esc(telBonito(c.telefono)) + (c.empresa ? " · " + esc(c.empresa) : "") + (c.correo ? " · " + esc(c.correo) : "") + "</div>" +
+          '<div class="meta">' + c.solicitudes + " cotizaci" + (c.solicitudes === 1 ? "ón" : "ones") + (c.ultima_solicitud ? " · última: " + fecha(c.ultima_solicitud) : "") + "</div>" +
+          botonesContacto(c.nombre, c.telefono, c.correo, "") +
+          '<button class="btn chico" type="button" data-cliente="' + c.id + '">Ver ficha del cliente</button>' +
+        "</article>").join("");
+      $$("[data-cliente]", cont).forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); irA("cli", a.dataset.cliente); }));
+    };
+    let t;
+    $("#bcli").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => cargar(e.target.value.trim()).catch(() => {}), 350); });
+    await cargar();
+  }
+
+  async function vistaCliente(id) {
+    const c = await getJSON("/admin/clientes/" + encodeURIComponent(id));
+    vista.innerHTML =
+      '<button class="btn chico" id="atras" type="button">← Todos los clientes</button>' +
+      '<article class="card" style="margin-top:12px">' +
+        '<div class="nombre" style="margin:0;font-size:1.3rem">' + esc(c.nombre) + "</div>" +
+        '<div class="meta">' + esc(telBonito(c.telefono)) + (c.empresa ? " · " + esc(c.empresa) : "") + (c.correo ? " · " + esc(c.correo) : "") + "</div>" +
+        '<div class="meta">Cliente desde ' + fecha(c.creado) + "</div>" +
+        botonesContacto(c.nombre, c.telefono, c.correo, "") +
+        '<label for="ncli">Notas sobre el cliente</label><textarea id="ncli" placeholder="Ej. Prefiere que le llamen por la tarde">' + esc(c.notas) + "</textarea>" +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn chico primario" id="gncli" type="button">Guardar notas</button><span class="ok" id="okcli" hidden>Guardado</span></div>' +
+      "</article>" +
+      '<h3 style="margin:20px 0 10px;color:var(--azul)">Cotizaciones de este cliente (' + c.solicitudes.length + ")</h3>" +
+      '<div class="lista" id="lcot"></div>';
+    $("#atras").addEventListener("click", () => irA("cli"));
+    $("#gncli").addEventListener("click", async () => {
+      try {
+        await api("/admin/clientes/" + c.id, {method: "PATCH", body: JSON.stringify({notas: $("#ncli").value})});
+        $("#okcli").hidden = false; setTimeout(() => $("#okcli").hidden = true, 2000);
+      } catch (err) { alert(err.message); }
+    });
+    const cont = $("#lcot");
+    if (!c.solicitudes.length) { cont.innerHTML = '<p class="vacio">Este cliente todavía no ha registrado cotizaciones.</p>'; return; }
+    const datos = {cliente_id: c.id, cliente_nombre: c.nombre, cliente_telefono: c.telefono, cliente_correo: c.correo, cliente_empresa: c.empresa};
+    cont.innerHTML = c.solicitudes.map((s) => tarjetaCotizacion({...s, ...datos})).join("");
+    conectarTarjetas(cont, () => vistaCliente(id));
+  }
+
+  /* ---------------- Conversaciones ---------------- */
+  async function vistaConversaciones() {
+    const s = await getJSON("/admin/sesiones");
+    if (!s.length) { vista.innerHTML = '<p class="vacio">Todavía no hay conversaciones.</p>'; return; }
+    vista.innerHTML = '<div class="lista">' + s.map((x) =>
+      '<article class="card" style="cursor:pointer" data-s="' + esc(x.session_id) + '">' +
+        '<div class="cab"><div><b>' + esc(x.cliente_nombre || "Visitante sin registrar") + "</b>" +
+        (x.cliente_telefono ? ' <span class="meta">· ' + esc(telBonito(x.cliente_telefono)) + "</span>" : "") + "</div>" +
+        (x.solicitudes ? '<span class="pill cerrada">' + x.solicitudes + " cotizaci" + (x.solicitudes === 1 ? "ón" : "ones") + "</span>" : '<span class="pill descartada">Sin cotización</span>') + "</div>" +
+        '<div class="meta">' + fecha(x.ultimo) + " · " + x.mensajes + " mensajes</div>" +
+        '<div style="margin-top:6px">“' + esc((x.primer_mensaje || "").slice(0, 120)) + "”</div>" +
+      "</article>").join("") + "</div>";
+    $$("[data-s]").forEach((el) => el.addEventListener("click", () => irA("conv", el.dataset.s)));
+  }
+
+  async function vistaHilo(sid) {
+    const m = await getJSON("/admin/sesiones/" + encodeURIComponent(sid));
+    vista.innerHTML = '<button class="btn chico" id="atras" type="button">← Todas las conversaciones</button>' +
+      '<div class="hilo" style="margin-top:12px">' +
+      (m.length ? m.map((x) => '<div class="m ' + esc(x.remitente) + '">' + esc(x.mensaje) + "<small>" + (x.remitente === "cliente" ? "Cliente" : "Asistente") + " · " + fecha(x.fecha) + "</small></div>").join("") : '<p class="meta">Sin mensajes.</p>') +
+      "</div>";
+    $("#atras").addEventListener("click", () => irA("conv"));
+  }
+
+  /* ---------------- Servicios y precios ---------------- */
+  async function vistaPrecios() {
+    const s = await getJSON("/admin/servicios");
+    const precioTxt = (x) => x.tipo_precio === "manual" || x.precio == null ? "Sin precio · lo cotiza un ingeniero"
+      : (x.tipo_precio === "desde" ? "Desde " : "") + dinero(x.precio) + " por " + esc(x.unidad);
+    vista.innerHTML =
+      '<div class="aviso">Lo que pongas aquí es lo que el chatbot usa para dar presupuestos. Los cambios aplican de inmediato. Los precios son sin IVA.</div>' +
+      '<form class="form" id="fs"><input type="hidden" id="sid">' +
+        '<div class="ancho"><label for="sn">Servicio</label><input id="sn" type="text" maxlength="120" required placeholder="Ej. Prueba de relevadores de protección"></div>' +
+        '<div class="ancho"><label for="sd">Descripción corta</label><input id="sd" type="text" maxlength="500" placeholder="Qué incluye"></div>' +
+        '<div><label for="st">Tipo de precio</label><select id="st"><option value="manual">Sin precio (lo cotiza un ingeniero)</option><option value="fijo">Precio fijo</option><option value="desde">Precio desde (base)</option></select></div>' +
+        '<div><label for="sp">Precio MXN (sin IVA)</label><input id="sp" type="number" min="0" step="0.01" placeholder="0.00"></div>' +
+        '<div><label for="su">Por cada…</label><input id="su" type="text" maxlength="40" value="servicio" placeholder="servicio, equipo, km, m2…"></div>' +
+        '<div class="chk"><input id="sa" type="checkbox" checked><label for="sa" style="margin:0">Activo (el bot lo ofrece)</label></div>' +
+        '<div class="acc"><button class="btn primario" type="submit" id="guardar">Agregar servicio</button><button class="btn" type="button" id="cancelar" hidden>Cancelar edición</button></div>' +
+        '<div class="err ancho" id="serr"></div>' +
+      "</form>" +
+      '<div class="lista">' + s.map((x) =>
+        '<article class="card' + (x.activo ? "" : " inactivo") + '">' +
+          '<div class="cab"><b>' + esc(x.nombre) + "</b>" + (x.activo ? "" : '<span class="pill descartada">Inactivo</span>') + "</div>" +
+          '<div class="meta">' + esc(x.descripcion) + "</div>" +
+          '<div class="precio" style="margin-top:6px">' + precioTxt(x) + "</div>" +
+          '<div class="acciones" style="margin-bottom:0"><button class="btn chico" data-e="' + x.id + '" type="button">Editar</button>' +
+          '<button class="btn chico peligro" data-b="' + x.id + '" type="button">Borrar</button></div>' +
+        "</article>").join("") + "</div>";
 
     const porId = Object.fromEntries(s.map((x) => [x.id, x]));
-    const limpiar = () => { $("#fs").reset(); $("#sid").value = ""; $("#guardar").textContent = "Agregar servicio"; $("#cancelar").hidden = true; };
-    $("#cancelar").onclick = limpiar;
+    const sincronizarPrecio = () => { const manual = $("#st").value === "manual"; $("#sp").disabled = manual; if (manual) $("#sp").value = ""; };
+    $("#st").addEventListener("change", sincronizarPrecio); sincronizarPrecio();
+    const limpiar = () => { $("#fs").reset(); $("#sid").value = ""; $("#su").value = "servicio"; $("#guardar").textContent = "Agregar servicio"; $("#cancelar").hidden = true; sincronizarPrecio(); };
+    $("#cancelar").addEventListener("click", limpiar);
 
     $("#fs").addEventListener("submit", async (e) => {
       e.preventDefault();
       const cuerpo = {
-        nombre: $("#sn").value.trim(),
-        descripcion: $("#sd").value.trim(),
+        nombre: $("#sn").value.trim(), descripcion: $("#sd").value.trim(),
+        tipo_precio: $("#st").value, precio: $("#sp").value === "" ? null : parseFloat($("#sp").value),
+        unidad: $("#su").value.trim() || "servicio", activo: $("#sa").checked,
       };
       try {
         const id = $("#sid").value;
-        await api(id ? "/admin/servicios/" + id : "/admin/servicios", { method: id ? "PUT" : "POST", body: JSON.stringify(cuerpo) });
-        vistaCatalogo(v);
+        await api(id ? "/admin/servicios/" + id : "/admin/servicios", {method: id ? "PUT" : "POST", body: JSON.stringify(cuerpo)});
+        vistaPrecios();
       } catch (err) { $("#serr").textContent = err.message; }
     });
-
-    v.querySelectorAll("button[data-e]").forEach((b) => b.addEventListener("click", () => {
+    $$("[data-e]").forEach((b) => b.addEventListener("click", () => {
       const x = porId[b.dataset.e];
       $("#sid").value = x.id; $("#sn").value = x.nombre; $("#sd").value = x.descripcion || "";
+      $("#st").value = x.tipo_precio; $("#sp").value = x.precio ?? ""; $("#su").value = x.unidad || "servicio"; $("#sa").checked = !!x.activo;
+      sincronizarPrecio();
       $("#guardar").textContent = "Guardar cambios"; $("#cancelar").hidden = false;
-      $("#sn").focus(); window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({top: 0, behavior: "smooth"}); $("#sn").focus();
     }));
-    v.querySelectorAll("button[data-b]").forEach((b) => b.addEventListener("click", async () => {
-      if (!confirm("¿Borrar este servicio? El bot dejará de mencionarlo en su lista de áreas.")) return;
-      try { await api("/admin/servicios/" + b.dataset.b, { method: "DELETE" }); vistaCatalogo(v); }
+    $$("[data-b]").forEach((b) => b.addEventListener("click", async () => {
+      if (!confirm("¿Borrar este servicio? El bot dejará de ofrecerlo. Si solo quieres pausarlo, edítalo y desmarca 'Activo'.")) return;
+      try { await api("/admin/servicios/" + b.dataset.b, {method: "DELETE"}); vistaPrecios(); }
       catch (err) { $("#serr").textContent = err.message; }
     }));
   }
 
-  if (pw) { api("/admin/resumen").then(entrar).catch(() => {}); }
+  /* ---------------- Ajustes ---------------- */
+  async function vistaAjustes() {
+    const r = await getJSON("/admin/resumen");
+    vista.innerHTML =
+      '<div class="aviso' + (r.correo_configurado ? " bien" : "") + '"><b>Avisos por correo:</b> ' +
+        (r.correo_configurado ? "activados. Cada cotización nueva llega por correo." : "no configurados. Faltan las variables de correo en Render.") + "</div>" +
+      '<div class="aviso' + (r.disco_permanente ? " bien" : "") + '"><b>Almacenamiento:</b> ' +
+        (r.disco_permanente ? "disco permanente, los datos no se borran." : "temporal. Configura DB_PATH con el disco de Render para no perder datos.") + "</div>" +
+      '<article class="card"><b>Probar correo</b><p class="meta" style="margin:4px 0 10px">Manda un correo de prueba a la dirección de avisos.</p>' +
+        '<button class="btn primario" id="probar" type="button">Enviar correo de prueba</button><div class="err" id="rprueba" style="color:inherit"></div></article>' +
+      '<article class="card" style="margin-top:12px"><b>Este mes</b><p class="meta" style="margin:4px 0 0">' +
+        r.conversaciones_mes + " conversaciones · " + r.solicitudes_mes + " cotizaciones · " + dinero(r.presupuestado_mes) + " presupuestado</p></article>";
+    $("#probar").addEventListener("click", async () => {
+      $("#rprueba").textContent = "Enviando…";
+      try { const j = await (await api("/admin/probar-correo", {method: "POST"})).json(); $("#rprueba").textContent = j.mensaje; }
+      catch (err) { $("#rprueba").textContent = err.message; }
+    });
+  }
+
+  if (pw) { api("/admin/resumen").then(entrar).catch(() => {}); } else { $("#pw").focus(); }
+})();
 </script>
 </body>
 </html>
