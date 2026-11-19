@@ -6,12 +6,14 @@ Flujo de una cotización:
   2. Le pide nombre y teléfono -> herramienta `registrar_cliente`
      (el cliente queda guardado por su teléfono; si ya existía, se reconoce).
   3. Confirma los conceptos -> herramienta `registrar_cotizacion`
-     (este código calcula el presupuesto con los precios de la base de datos,
-     genera el folio BOM-0001 y le avisa por correo al dueño).
+     (genera la pre-cotización con folio BOM-0001, calcula un rango aproximado
+     si el servicio tiene uno, y le avisa por correo al dueño).
+     La cotización real y final la hace el dueño al comunicarse con el cliente,
+     porque el precio depende del servicio, el lugar, la distancia, etc.
   4. Si el cliente escribe NUEVA COTIZACIÓN (o usa el botón), el bot empieza
      una cotización desde cero en el mismo chat, sin volver a pedirle sus datos.
 
-Regla importante: los precios y totales los calcula este código, nunca la IA.
+Regla importante: los rangos aproximados los calcula este código, nunca la IA.
 """
 
 import json
@@ -49,13 +51,24 @@ def _dinero(v):
     return f"${v:,.2f} MXN"
 
 
-def _precio_texto(s: dict) -> str:
+def _rango(s: dict):
+    """(mínimo, máximo) aproximados por unidad, o None si el servicio no tiene precio."""
     if s["tipo_precio"] == "manual" or s["precio"] is None:
-        return "sin precio publicado: lo cotiza un ingeniero"
-    unidad = s.get("unidad") or "servicio"
-    if s["tipo_precio"] == "desde":
-        return f"desde {_dinero(s['precio'])} por {unidad} (precio base, el final depende del proyecto)"
-    return f"{_dinero(s['precio'])} por {unidad}"
+        return None
+    minimo = s["precio"]
+    maximo = s.get("precio_max") or minimo
+    return minimo, max(minimo, maximo)
+
+
+def _rango_texto(minimo, maximo):
+    return _dinero(minimo) if maximo == minimo else f"{_dinero(minimo)} a {_dinero(maximo)}"
+
+
+def _precio_texto(s: dict) -> str:
+    r = _rango(s)
+    if r is None:
+        return "sin precio aproximado: lo cotiza directamente BOMAR"
+    return f"aproximado de {_rango_texto(*r)} por {s.get('unidad') or 'servicio'} (referencia, no es precio final)"
 
 
 # ---------------------------------------------------------------------------
@@ -65,29 +78,30 @@ def _precio_texto(s: dict) -> str:
 def prompt_fijo(catalogo: list[dict]) -> str:
     """Parte del prompt que casi no cambia (se guarda en caché para ahorrar)."""
     lineas = "\n".join(
-        f"- ID {s['id']}: {s['nombre']} — {s['descripcion'] or ''} | Precio: {_precio_texto(s)}"
+        f"- ID {s['id']}: {s['nombre']} — {s['descripcion'] or ''} | Aproximado: {_precio_texto(s)}"
         for s in catalogo
     ) or "(sin servicios registrados)"
 
     return f"""Eres el asistente virtual de BOMAR, empresa mexicana de construcción, ingeniería y consultoría para proyectos energéticos, industriales y residenciales. Atiendes a los visitantes de bomar.mx por chat, en español, con tono profesional, cordial y breve (máximo 5-6 líneas por respuesta, salvo que el cliente pida detalle). Hablas de "usted" salvo que el cliente tutee.
 
 TU OBJETIVO
-Que cada cliente salga con su solicitud de cotización registrada y bien explicada, para que el dueño de BOMAR solo tenga que revisar el panel y contactarlo.
+Que cada cliente deje una pre-cotización completa y bien explicada, para que el dueño de BOMAR la revise en su panel, se comunique con el cliente y le dé la cotización real y final.
 
 CÓMO ATENDER
 1. Entiende qué necesita el cliente. Explícale qué servicio de BOMAR le sirve, usando solo la información de abajo.
-2. Reúne lo necesario para cotizar, con preguntas cortas (una o dos por mensaje): qué servicio, cantidad (equipos, km, m2, etc. según la unidad del servicio), ubicación del proyecto, y una descripción breve (tensión, capacidad, fechas, lo que sepa).
+2. Reúne lo que el dueño necesita para cotizar, con preguntas cortas (una o dos por mensaje): qué servicio, cantidad o tamaño (equipos, km, m2, kVA, etc.), ubicación exacta del proyecto (ciudad y lugar), una descripción del alcance (tensión, capacidad, estado actual del equipo) y para cuándo lo necesita.
 3. Pide su nombre y su teléfono (WhatsApp de preferencia). El correo y la empresa son opcionales: pregúntalos una vez, sin insistir. En cuanto tengas nombre y teléfono, usa `registrar_cliente`.
 4. Antes de registrar, resume en una lista corta lo que se va a cotizar y pide que lo confirme.
-5. Con la confirmación, usa `registrar_cotizacion`. Después dale al cliente: el folio, el presupuesto tal como lo devolvió la herramienta, y que un ingeniero de BOMAR lo contactará para confirmar. Termina diciéndole que si desea otra cotización, puede escribir {PALABRA_CLAVE}.
+5. Con la confirmación, usa `registrar_cotizacion`. Después dale al cliente: el folio, el resumen de su solicitud, el aproximado SOLO si la herramienta lo devolvió, y explícale que el dueño de BOMAR se comunicará con él para darle la cotización real y final. Termina diciéndole que si desea otra cotización, puede escribir {PALABRA_CLAVE}.
 6. Una sola cotización por folio. Si el cliente pide algo totalmente distinto después de registrar, sugiérele escribir {PALABRA_CLAVE}.
 
-PRECIOS
-- Usa ÚNICAMENTE los precios del catálogo. NUNCA inventes precios, descuentos, tiempos de entrega ni garantías.
-- El presupuesto oficial lo calcula `registrar_cotizacion`; no hagas cuentas por tu cuenta ni prometas un total antes.
-- Si un servicio dice "sin precio publicado", explica que un ingeniero lo cotiza a la medida, y regístralo de todos modos.
-- Si el precio es "desde", aclara que es un precio base y que el final depende del proyecto.
-- Aclara siempre que el presupuesto es preliminar y que BOMAR lo confirma al revisar el proyecto.
+PRECIOS (MUY IMPORTANTE)
+- Los precios de BOMAR varían mucho según el servicio, el lugar, la distancia y el alcance del proyecto. Por eso el chat NUNCA da una cotización final.
+- La cotización real y final siempre la da el dueño de BOMAR cuando se comunica con el cliente. Dilo con claridad.
+- Solo menciona cifras si `registrar_cotizacion` devolvió un aproximado, y preséntalo como "aproximado de referencia". No hagas cuentas por tu cuenta ni des cifras antes de registrar.
+- Si un servicio no tiene aproximado, no des ninguna cifra ni rango: explica que BOMAR cotiza según el proyecto.
+- Si el cliente insiste en un precio, explica amablemente por qué depende del proyecto y que el dueño lo contactará pronto con la cotización exacta.
+- NUNCA inventes precios, descuentos, tiempos de entrega ni garantías.
 
 REGLAS
 - No inventes servicios, certificaciones, clientes, ubicación, horarios ni datos de la empresa. Si no lo sabes, dilo y ofrece que un ingeniero lo contacte.
@@ -147,8 +161,9 @@ HERRAMIENTAS = [
     {
         "name": "registrar_cotizacion",
         "description": (
-            "Registra la cotización del cliente ya identificado, calcula el presupuesto con los precios del "
-            "catálogo, genera el folio y avisa a BOMAR. Úsala solo después de que el cliente confirme lo que quiere."
+            "Registra la pre-cotización del cliente ya identificado, genera el folio, calcula un aproximado de "
+            "referencia si el servicio lo tiene y avisa al dueño de BOMAR, quien dará la cotización final. "
+            "Úsala solo después de que el cliente confirme lo que quiere."
         ),
         "input_schema": {
             "type": "object",
@@ -214,7 +229,7 @@ def ejecutar_registrar_cotizacion(session_id: str, datos: dict) -> dict:
         return {"ok": False, "error": "Indica al menos un servicio del catálogo en 'conceptos'."}
 
     catalogo = {s["id"]: s for s in db.obtener_catalogo(solo_activos=True)}
-    lineas, total, hay_precio, estimado, revision = [], 0.0, False, False, False
+    lineas, tot_min, tot_max, hay_precio, revision = [], 0.0, 0.0, False, False
 
     for it in conceptos[:20]:
         try:
@@ -230,39 +245,38 @@ def ejecutar_registrar_cotizacion(session_id: str, datos: dict) -> dict:
 
         cant_txt = f"{cantidad:g} {s.get('unidad') or 'servicio'}"
         extra = f" ({str(it.get('detalle')).strip()[:120]})" if it.get("detalle") else ""
-        if s["tipo_precio"] == "manual" or s["precio"] is None:
+        r = _rango(s)
+        if r is None:
             revision = True
-            lineas.append(f"- {s['nombre']}{extra}: {cant_txt} · por cotizar")
+            lineas.append(f"- {s['nombre']}{extra}: {cant_txt} · lo cotiza BOMAR")
         else:
-            subtotal = s["precio"] * cantidad
-            total += subtotal
             hay_precio = True
-            if s["tipo_precio"] == "desde":
-                estimado = True
-                lineas.append(f"- {s['nombre']}{extra}: {cant_txt} x desde {_dinero(s['precio'])} = desde {_dinero(subtotal)}")
-            else:
-                lineas.append(f"- {s['nombre']}{extra}: {cant_txt} x {_dinero(s['precio'])} = {_dinero(subtotal)}")
+            tot_min += r[0] * cantidad
+            tot_max += r[1] * cantidad
+            lineas.append(f"- {s['nombre']}{extra}: {cant_txt} · aprox. {_rango_texto(r[0] * cantidad, r[1] * cantidad)}")
 
     detalle = "\n".join(lineas)
-    total_final = round(total, 2) if hay_precio else None
+    total_min = round(tot_min, 2) if hay_precio else None
+    total_max = round(tot_max, 2) if hay_precio else None
     sol = db.crear_solicitud(cliente["id"], session_id, servicio, descripcion, ubicacion, detalle,
-                             total_final, estimado, revision)
+                             total_min, total_max, revision)
 
     es_cliente_nuevo = len(db.folios_de_cliente(cliente["id"], limite=2)) == 1
     notificaciones.avisar_nueva_solicitud(sol, cliente, es_cliente_nuevo)
 
-    if total_final is None:
-        resumen_total = "Sin precio publicado: un ingeniero de BOMAR enviará el presupuesto."
+    if total_min is None:
+        aproximado = "Sin aproximado: no des cifras. El dueño de BOMAR le dará la cotización al comunicarse."
     else:
-        resumen_total = ("Total estimado: desde " if estimado else "Total: ") + _dinero(total_final) + " (más IVA si aplica)"
+        aproximado = "Aproximado de referencia: " + _rango_texto(total_min, total_max) + " más IVA"
         if revision:
-            resumen_total += ". Algunos conceptos no tienen precio publicado y se cotizan aparte."
+            aproximado += ", sin contar los conceptos que cotiza BOMAR directamente"
     return {
         "ok": True,
         "folio": sol["folio"],
         "detalle": detalle,
-        "total": resumen_total,
-        "nota": "Presupuesto preliminar. BOMAR lo confirma al revisar el proyecto.",
+        "aproximado": aproximado,
+        "nota": ("No es la cotización final. El precio depende del servicio, el lugar, la distancia y el alcance; "
+                 "el dueño de BOMAR se comunicará con el cliente para darle la cotización real y final."),
     }
 
 

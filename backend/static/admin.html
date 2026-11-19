@@ -158,7 +158,8 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const dinero = (n) => n == null ? "Por cotizar" : "$" + Number(n).toLocaleString("es-MX", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " MXN";
+  const dinero = (n) => n == null ? "—" : "$" + Number(n).toLocaleString("es-MX", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " MXN";
+  const rango = (a, b) => (b == null || b === a) ? dinero(a) : dinero(a) + " a " + dinero(b);
   const fecha = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleString("es-MX", {dateStyle: "medium", timeStyle: "short"}); };
   const telBonito = (t) => (t && t.length === 10) ? t.replace(/(\d{2})(\d{4})(\d{4})/, "$1 $2 $3") : (t || "");
   const wa = (t) => "https://wa.me/" + (t.length === 10 ? "52" + t : t);
@@ -276,8 +277,8 @@
 
   function tarjetaCotizacion(s) {
     const opciones = ESTADOS.map(([v, t]) => '<option value="' + v + '"' + (s.estado === v ? " selected" : "") + ">" + t + "</option>").join("");
-    let totalTxt = dinero(s.total);
-    if (s.total != null && s.total_es_estimado) totalTxt = "Desde " + totalTxt;
+    const totalTxt = s.total == null ? "Sin aproximado · pendiente tu cotización final"
+      : "Aproximado: " + rango(s.total, s.total_max);
     return '<article class="card' + (s.estado === "nueva" ? " nueva" : "") + '" data-id="' + s.id + '">' +
       '<div class="cab"><div><div class="folio">' + esc(s.folio) + '</div><div class="fecha">' + fecha(s.creado) + "</div></div>" +
       '<span class="pill ' + esc(s.estado) + '">' + esc(s.estado) + "</span></div>" +
@@ -287,8 +288,8 @@
       '<div class="bloque"><h4>Servicio</h4><p>' + esc(s.servicio || "—") + "</p></div>" +
       (s.ubicacion ? '<div class="bloque"><h4>Ubicación</h4><p>' + esc(s.ubicacion) + "</p></div>" : "") +
       '<div class="bloque"><h4>Lo que necesita</h4><p>' + esc(s.descripcion || "—") + "</p></div>" +
-      '<div class="bloque"><h4>Presupuesto</h4><pre>' + esc(s.detalle || "—") + "</pre></div>" +
-      '<div class="total">' + esc(totalTxt) + (s.requiere_revision ? "<small>Tiene conceptos sin precio: falta tu cotización</small>" : "") + (s.total != null ? "<small>Más IVA si aplica · presupuesto preliminar</small>" : "") + "</div>" +
+      '<div class="bloque"><h4>Pre-cotización</h4><pre>' + esc(s.detalle || "—") + "</pre></div>" +
+      '<div class="total">' + esc(totalTxt) + (s.total != null ? "<small>Referencia que vio el cliente, más IVA" + (s.requiere_revision ? " · hay conceptos sin aproximado" : "") + "</small>" : "") + "<small>La cotización real y final se la das tú al comunicarte con el cliente.</small>" + "</div>" +
       '<div class="gestion">' +
         '<div><label for="e' + s.id + '">Estado</label><select id="e' + s.id + '" class="sel-estado">' + opciones + "</select></div>" +
         '<div><label for="n' + s.id + '">Notas internas</label><textarea id="n' + s.id + '" class="notas" placeholder="Ej. Le llamé el martes, pidió visita técnica">' + esc(s.notas) + "</textarea></div>" +
@@ -444,15 +445,16 @@
   /* ---------------- Servicios y precios ---------------- */
   async function vistaPrecios() {
     const s = await getJSON("/admin/servicios");
-    const precioTxt = (x) => x.tipo_precio === "manual" || x.precio == null ? "Sin precio · lo cotiza un ingeniero"
-      : (x.tipo_precio === "desde" ? "Desde " : "") + dinero(x.precio) + " por " + esc(x.unidad);
+    const precioTxt = (x) => x.tipo_precio === "manual" || x.precio == null ? "Sin aproximado · el chat no da cifras"
+      : "Aproximado: " + rango(x.precio, x.precio_max) + " por " + esc(x.unidad);
     vista.innerHTML =
-      '<div class="aviso">Lo que pongas aquí es lo que el chatbot usa para dar presupuestos. Los cambios aplican de inmediato. Los precios son sin IVA.</div>' +
+      '<div class="aviso">El chat nunca da la cotización final: esa la das tú al comunicarte con el cliente. Si quieres que el chat dé una <b>referencia</b>, pon un aproximado (mínimo y máximo, sin IVA). Si lo dejas en "Sin aproximado", el chat no menciona cifras. Los cambios aplican de inmediato.</div>' +
       '<form class="form" id="fs"><input type="hidden" id="sid">' +
         '<div class="ancho"><label for="sn">Servicio</label><input id="sn" type="text" maxlength="120" required placeholder="Ej. Prueba de relevadores de protección"></div>' +
         '<div class="ancho"><label for="sd">Descripción corta</label><input id="sd" type="text" maxlength="500" placeholder="Qué incluye"></div>' +
-        '<div><label for="st">Tipo de precio</label><select id="st"><option value="manual">Sin precio (lo cotiza un ingeniero)</option><option value="fijo">Precio fijo</option><option value="desde">Precio desde (base)</option></select></div>' +
-        '<div><label for="sp">Precio MXN (sin IVA)</label><input id="sp" type="number" min="0" step="0.01" placeholder="0.00"></div>' +
+        '<div><label for="st">¿El chat da un aproximado?</label><select id="st"><option value="manual">Sin aproximado (no da cifras)</option><option value="aproximado">Sí, un rango aproximado</option></select></div>' +
+        '<div><label for="sp">Aproximado mínimo MXN</label><input id="sp" type="number" min="0" step="0.01" placeholder="0.00"></div>' +
+        '<div><label for="sx">Aproximado máximo MXN</label><input id="sx" type="number" min="0" step="0.01" placeholder="opcional"></div>' +
         '<div><label for="su">Por cada…</label><input id="su" type="text" maxlength="40" value="servicio" placeholder="servicio, equipo, km, m2…"></div>' +
         '<div class="chk"><input id="sa" type="checkbox" checked><label for="sa" style="margin:0">Activo (el bot lo ofrece)</label></div>' +
         '<div class="acc"><button class="btn primario" type="submit" id="guardar">Agregar servicio</button><button class="btn" type="button" id="cancelar" hidden>Cancelar edición</button></div>' +
@@ -468,7 +470,7 @@
         "</article>").join("") + "</div>";
 
     const porId = Object.fromEntries(s.map((x) => [x.id, x]));
-    const sincronizarPrecio = () => { const manual = $("#st").value === "manual"; $("#sp").disabled = manual; if (manual) $("#sp").value = ""; };
+    const sincronizarPrecio = () => { const manual = $("#st").value === "manual"; ["#sp", "#sx"].forEach((q) => { $(q).disabled = manual; if (manual) $(q).value = ""; }); };
     $("#st").addEventListener("change", sincronizarPrecio); sincronizarPrecio();
     const limpiar = () => { $("#fs").reset(); $("#sid").value = ""; $("#su").value = "servicio"; $("#guardar").textContent = "Agregar servicio"; $("#cancelar").hidden = true; sincronizarPrecio(); };
     $("#cancelar").addEventListener("click", limpiar);
@@ -478,6 +480,7 @@
       const cuerpo = {
         nombre: $("#sn").value.trim(), descripcion: $("#sd").value.trim(),
         tipo_precio: $("#st").value, precio: $("#sp").value === "" ? null : parseFloat($("#sp").value),
+        precio_max: $("#sx").value === "" ? null : parseFloat($("#sx").value),
         unidad: $("#su").value.trim() || "servicio", activo: $("#sa").checked,
       };
       try {
@@ -489,7 +492,7 @@
     $$("[data-e]").forEach((b) => b.addEventListener("click", () => {
       const x = porId[b.dataset.e];
       $("#sid").value = x.id; $("#sn").value = x.nombre; $("#sd").value = x.descripcion || "";
-      $("#st").value = x.tipo_precio; $("#sp").value = x.precio ?? ""; $("#su").value = x.unidad || "servicio"; $("#sa").checked = !!x.activo;
+      $("#st").value = x.tipo_precio === "manual" ? "manual" : "aproximado"; $("#sp").value = x.precio ?? ""; $("#sx").value = x.precio_max ?? ""; $("#su").value = x.unidad || "servicio"; $("#sa").checked = !!x.activo;
       sincronizarPrecio();
       $("#guardar").textContent = "Guardar cambios"; $("#cancelar").hidden = false;
       window.scrollTo({top: 0, behavior: "smooth"}); $("#sn").focus();
@@ -512,7 +515,7 @@
       '<article class="card"><b>Probar correo</b><p class="meta" style="margin:4px 0 10px">Manda un correo de prueba a la dirección de avisos.</p>' +
         '<button class="btn primario" id="probar" type="button">Enviar correo de prueba</button><div class="err" id="rprueba" style="color:inherit"></div></article>' +
       '<article class="card" style="margin-top:12px"><b>Este mes</b><p class="meta" style="margin:4px 0 0">' +
-        r.conversaciones_mes + " conversaciones · " + r.solicitudes_mes + " cotizaciones · " + dinero(r.presupuestado_mes) + " presupuestado</p></article>";
+        r.conversaciones_mes + " conversaciones · " + r.solicitudes_mes + " solicitudes de cotización</p></article>";
     $("#probar").addEventListener("click", async () => {
       $("#rprueba").textContent = "Enviando…";
       try { const j = await (await api("/admin/probar-correo", {method: "POST"})).json(); $("#rprueba").textContent = j.mensaje; }

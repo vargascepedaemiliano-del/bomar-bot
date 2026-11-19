@@ -224,11 +224,12 @@ def admin_exportar():
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Folio", "Fecha", "Estado", "Cliente", "Teléfono", "Correo", "Empresa",
-                "Servicio", "Ubicación", "Descripción", "Presupuesto", "Total MXN", "Notas"])
+                "Servicio", "Ubicación", "Descripción", "Pre-cotización", "Aprox. mínimo MXN", "Aprox. máximo MXN", "Notas"])
     for s in database.listar_solicitudes(limite=100000):
         w.writerow([s["folio"], s["creado"], s["estado"], s["cliente_nombre"], s["cliente_telefono"],
                     s["cliente_correo"], s["cliente_empresa"], s["servicio"], s["ubicacion"], s["descripcion"],
-                    s["detalle"], "" if s["total"] is None else f"{s['total']:.2f}", s["notas"]])
+                    s["detalle"], "" if s["total"] is None else f"{s['total']:.2f}",
+                    "" if s["total_max"] is None else f"{s['total_max']:.2f}", s["notas"]])
     contenido = "﻿" + buf.getvalue()  # BOM para que Excel respete los acentos
     return Response(content=contenido, media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="cotizaciones-bomar.csv"'})
@@ -277,16 +278,23 @@ def admin_sesion(session_id: str):
 class ServicioIn(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=120)
     descripcion: str = Field(default="", max_length=500)
-    precio: Optional[float] = Field(default=None, ge=0)
+    precio: Optional[float] = Field(default=None, ge=0)       # aproximado mínimo
+    precio_max: Optional[float] = Field(default=None, ge=0)   # aproximado máximo
     unidad: str = Field(default="servicio", min_length=1, max_length=40)
-    tipo_precio: Literal["manual", "fijo", "desde"] = "manual"
+    tipo_precio: Literal["manual", "aproximado"] = "manual"
     activo: bool = True
 
 
 def _validar_servicio(s: ServicioIn):
-    if s.tipo_precio != "manual" and s.precio is None:
-        raise HTTPException(status_code=400, detail="Pon un precio, o elige 'Sin precio (lo cotiza un ingeniero)'.")
-    return None if s.tipo_precio == "manual" else s.precio
+    """Devuelve (mínimo, máximo) a guardar."""
+    if s.tipo_precio == "manual":
+        return None, None
+    if s.precio is None:
+        raise HTTPException(status_code=400, detail="Pon al menos el aproximado mínimo, o elige 'Sin aproximado'.")
+    maximo = s.precio_max if s.precio_max is not None else s.precio
+    if maximo < s.precio:
+        raise HTTPException(status_code=400, detail="El aproximado máximo no puede ser menor que el mínimo.")
+    return s.precio, maximo
 
 
 @app.get("/admin/servicios", dependencies=admin)
@@ -296,14 +304,14 @@ def admin_servicios():
 
 @app.post("/admin/servicios", dependencies=admin)
 def admin_crear_servicio(s: ServicioIn):
-    precio = _validar_servicio(s)
-    return {"id": database.crear_servicio(s.nombre, s.descripcion, precio, s.unidad, s.tipo_precio, s.activo)}
+    minimo, maximo = _validar_servicio(s)
+    return {"id": database.crear_servicio(s.nombre, s.descripcion, minimo, maximo, s.unidad, s.tipo_precio, s.activo)}
 
 
 @app.put("/admin/servicios/{servicio_id}", dependencies=admin)
 def admin_actualizar_servicio(servicio_id: int, s: ServicioIn):
-    precio = _validar_servicio(s)
-    if not database.actualizar_servicio(servicio_id, s.nombre, s.descripcion, precio, s.unidad, s.tipo_precio, s.activo):
+    minimo, maximo = _validar_servicio(s)
+    if not database.actualizar_servicio(servicio_id, s.nombre, s.descripcion, minimo, maximo, s.unidad, s.tipo_precio, s.activo):
         raise HTTPException(status_code=404, detail="Servicio no encontrado.")
     return {"ok": True}
 

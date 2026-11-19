@@ -2,7 +2,7 @@
 BOMAR Bot - Base de datos (SQLite)
 
 Tablas:
-  - servicios:      catálogo de BOMAR con su precio (o sin precio = cotización manual)
+  - servicios:      catálogo de BOMAR con un rango de precio aproximado (o sin precio)
   - clientes:       cada cliente, identificado por su teléfono
   - sesiones:       une cada chat (session_id) con su cliente y guarda el "corte"
                     que se hace al escribir NUEVA COTIZACIÓN
@@ -24,7 +24,7 @@ DB_NAME = os.getenv("DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(_
 ZONA = ZoneInfo("America/Monterrey")
 
 ESTADOS = ("nueva", "contactado", "cotizado", "cerrada", "descartada")
-TIPOS_PRECIO = ("manual", "fijo", "desde")
+TIPOS_PRECIO = ("manual", "aproximado")
 
 
 def ahora() -> str:
@@ -57,6 +57,12 @@ def _filas(cur):
     return [dict(f) for f in cur.fetchall()]
 
 
+def _agregar_columna(c, tabla, columna, tipo):
+    columnas = [f[1] for f in c.execute(f"PRAGMA table_info({tabla})")]
+    if columna not in columnas:
+        c.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
+
+
 # ---------------------------------------------------------------------------
 # Creación de tablas
 # ---------------------------------------------------------------------------
@@ -73,9 +79,10 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
                 descripcion TEXT DEFAULT '',
-                precio REAL,                         -- NULL = sin precio
+                precio REAL,                         -- precio aproximado mínimo (NULL = sin precio)
+                precio_max REAL,                     -- precio aproximado máximo (opcional)
                 unidad TEXT DEFAULT 'servicio',      -- ej. 'servicio', 'equipo', 'km', 'm2'
-                tipo_precio TEXT DEFAULT 'manual',   -- manual | fijo | desde
+                tipo_precio TEXT DEFAULT 'manual',   -- manual | aproximado
                 activo INTEGER DEFAULT 1
             );
 
@@ -115,8 +122,9 @@ def init_db():
                 descripcion TEXT DEFAULT '',         -- detalle del proyecto
                 ubicacion TEXT DEFAULT '',
                 detalle TEXT DEFAULT '',             -- líneas del presupuesto
-                total REAL,                          -- NULL si no hay precio
-                total_es_estimado INTEGER DEFAULT 0, -- 1 si incluye precios "desde"
+                total REAL,                          -- aproximado mínimo (NULL si no hay precio)
+                total_max REAL,                      -- aproximado máximo
+                total_es_estimado INTEGER DEFAULT 1, -- siempre aproximado: la cotización final la da BOMAR
                 requiere_revision INTEGER DEFAULT 0, -- 1 si hay conceptos sin precio
                 estado TEXT DEFAULT 'nueva',
                 notas TEXT DEFAULT '',
@@ -125,6 +133,10 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_sol_cliente ON solicitudes(cliente_id);
         """)
+
+        # Migración: columnas nuevas para bases de datos que ya existían
+        _agregar_columna(c, "servicios", "precio_max", "REAL")
+        _agregar_columna(c, "solicitudes", "total_max", "REAL")
 
         if c.execute("SELECT COUNT(*) FROM servicios").fetchone()[0] == 0:
             servicios = [
@@ -154,20 +166,20 @@ def obtener_catalogo(solo_activos=False):
         return _filas(c.execute(q))
 
 
-def crear_servicio(nombre, descripcion, precio, unidad, tipo_precio, activo=True):
+def crear_servicio(nombre, descripcion, precio, precio_max, unidad, tipo_precio, activo=True):
     with conexion() as c:
         cur = c.execute(
-            "INSERT INTO servicios (nombre, descripcion, precio, unidad, tipo_precio, activo) VALUES (?, ?, ?, ?, ?, ?)",
-            (nombre, descripcion, precio, unidad, tipo_precio, 1 if activo else 0),
+            "INSERT INTO servicios (nombre, descripcion, precio, precio_max, unidad, tipo_precio, activo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (nombre, descripcion, precio, precio_max, unidad, tipo_precio, 1 if activo else 0),
         )
         return cur.lastrowid
 
 
-def actualizar_servicio(servicio_id, nombre, descripcion, precio, unidad, tipo_precio, activo=True):
+def actualizar_servicio(servicio_id, nombre, descripcion, precio, precio_max, unidad, tipo_precio, activo=True):
     with conexion() as c:
         cur = c.execute(
-            "UPDATE servicios SET nombre=?, descripcion=?, precio=?, unidad=?, tipo_precio=?, activo=? WHERE id=?",
-            (nombre, descripcion, precio, unidad, tipo_precio, 1 if activo else 0, servicio_id),
+            "UPDATE servicios SET nombre=?, descripcion=?, precio=?, precio_max=?, unidad=?, tipo_precio=?, activo=? WHERE id=?",
+            (nombre, descripcion, precio, precio_max, unidad, tipo_precio, 1 if activo else 0, servicio_id),
         )
         return cur.rowcount > 0
 
@@ -328,15 +340,15 @@ def folios_de_cliente(cliente_id, limite=5):
 # Solicitudes (cotizaciones)
 # ---------------------------------------------------------------------------
 
-def crear_solicitud(cliente_id, session_id, servicio, descripcion, ubicacion, detalle, total,
-                    total_es_estimado, requiere_revision):
+def crear_solicitud(cliente_id, session_id, servicio, descripcion, ubicacion, detalle, total, total_max,
+                    requiere_revision):
     with conexion() as c:
         sid = c.execute(
             """INSERT INTO solicitudes (cliente_id, session_id, servicio, descripcion, ubicacion, detalle, total,
-                   total_es_estimado, requiere_revision, estado, creado, actualizado)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'nueva', ?, ?)""",
-            (cliente_id, session_id, servicio, descripcion, ubicacion, detalle, total,
-             1 if total_es_estimado else 0, 1 if requiere_revision else 0, ahora(), ahora()),
+                   total_max, total_es_estimado, requiere_revision, estado, creado, actualizado)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'nueva', ?, ?)""",
+            (cliente_id, session_id, servicio, descripcion, ubicacion, detalle, total, total_max,
+             1 if requiere_revision else 0, ahora(), ahora()),
         ).lastrowid
         folio = f"BOM-{sid:04d}"
         c.execute("UPDATE solicitudes SET folio = ? WHERE id = ?", (folio, sid))

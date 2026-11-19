@@ -39,17 +39,20 @@ def correo_configurado() -> bool:
 
 
 def _dinero(v):
-    return "Por cotizar" if v is None else f"${v:,.2f} MXN"
+    return "—" if v is None else f"${v:,.2f} MXN"
 
 
 def _construir(sol: dict, cliente: dict, es_cliente_nuevo: bool, cfg: dict) -> EmailMessage:
     tel = cliente["telefono"]
     wa = f"https://wa.me/52{tel}" if len(tel) == 10 else f"https://wa.me/{tel}"
-    total_txt = _dinero(sol.get("total"))
-    if sol.get("total") is not None and sol.get("total_es_estimado"):
-        total_txt += " (estimado, incluye precios 'desde')"
-    if sol.get("requiere_revision"):
-        total_txt += " · Hay conceptos sin precio: requiere tu cotización"
+    if sol.get("total") is None:
+        total_txt = "Sin aproximado: pendiente tu cotización final"
+    else:
+        mn, mx = sol["total"], sol.get("total_max") or sol["total"]
+        total_txt = ("Aprox. " + _dinero(mn) + ("" if mx == mn else " a " + _dinero(mx))
+                     + " (referencia que vio el cliente; la cotización final es tuya)")
+        if sol.get("requiere_revision"):
+            total_txt += " · Hay conceptos sin aproximado"
 
     filas = [
         ("Folio", sol["folio"]),
@@ -60,11 +63,11 @@ def _construir(sol: dict, cliente: dict, es_cliente_nuevo: bool, cfg: dict) -> E
         ("Servicio", sol.get("servicio") or "—"),
         ("Ubicación", sol.get("ubicacion") or "—"),
         ("Descripción", sol.get("descripcion") or "—"),
-        ("Presupuesto", (sol.get("detalle") or "—")),
-        ("Total", total_txt),
+        ("Pre-cotización", (sol.get("detalle") or "—")),
+        ("Aproximado", total_txt),
     ]
 
-    texto = "Nueva solicitud de cotización desde el chat de bomar.mx\n\n" + "\n".join(
+    texto = "Nueva solicitud de cotización desde el chat de bomar.mx.\nComunícate con el cliente para darle la cotización final.\n\n" + "\n".join(
         f"{k}: {v}" for k, v in filas
     )
     texto += f"\n\nLlamar: tel:{tel}\nWhatsApp: {wa}"
@@ -89,7 +92,8 @@ def _construir(sol: dict, cliente: dict, es_cliente_nuevo: bool, cfg: dict) -> E
     cuerpo_html = f"""<div style="font-family:Arial,Helvetica,sans-serif;color:#0f1d33;max-width:620px">
       <div style="background:#043074;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0">
         <div style="font-size:13px;opacity:.8">Chat de bomar.mx</div>
-        <div style="font-size:20px;font-weight:bold">Nueva cotización {html.escape(sol['folio'])}</div>
+        <div style="font-size:20px;font-weight:bold">Nueva solicitud de cotización {html.escape(sol['folio'])}</div>
+        <div style="font-size:13px;opacity:.85;margin-top:4px">Comunícate con el cliente para darle la cotización final.</div>
       </div>
       <div style="border:1px solid #cfd8e6;border-top:0;padding:16px 20px;border-radius:0 0 10px 10px">
         <table style="border-collapse:collapse;font-size:15px">{celdas}</table>
@@ -97,7 +101,7 @@ def _construir(sol: dict, cliente: dict, es_cliente_nuevo: bool, cfg: dict) -> E
       </div></div>"""
 
     msg = EmailMessage()
-    msg["Subject"] = f"Nueva cotización {sol['folio']} · {cliente['nombre']} · {sol.get('servicio') or 'BOMAR'}"
+    msg["Subject"] = f"Nueva solicitud de cotización {sol['folio']} · {cliente['nombre']} · {sol.get('servicio') or 'BOMAR'}"
     msg["From"] = f"Chat BOMAR <{cfg['user']}>"
     msg["To"] = ", ".join(cfg["to"])
     if cliente.get("correo"):
