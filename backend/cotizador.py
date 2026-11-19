@@ -460,8 +460,9 @@ def responder(client, session_id: str, texto_cliente: str) -> str:
                 "content": json.dumps(salida, ensure_ascii=False),
             })
         mensajes.append({"role": "user", "content": resultados})
-        # Después de registrar al cliente, el prompt debe reflejarlo
-        sistema[1] = {"type": "text", "text": prompt_cliente(session_id)}
+        # Importante: el prompt (system) NO se cambia dentro de esta vuelta. El modelo firma su
+        # razonamiento con el prompt original y la API rechaza la llamada si este cambia.
+        # El resultado de la herramienta ya le dice al modelo que el cliente quedó registrado.
 
     texto_final = _limpiar_markdown(texto_final)
     if not texto_final:
