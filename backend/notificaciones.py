@@ -128,6 +128,27 @@ def avisar_nueva_solicitud(sol: dict, cliente: dict, es_cliente_nuevo: bool):
     threading.Thread(target=_enviar, args=(msg, cfg), daemon=True).start()
 
 
+def avisar_correccion(cliente: dict, folios: list):
+    """Si el cliente corrigió sus datos después de registrar, se avisa al dueño con los datos buenos."""
+    cfg = _config()
+    if not cfg["activo"]:
+        return
+    tel = cliente["telefono"]
+    lista = ", ".join(f["folio"] for f in folios) or "—"
+    msg = EmailMessage()
+    msg["Subject"] = f"Corrección de datos · {cliente['nombre']} · {lista}"
+    msg["From"] = f"Chat BOMAR <{cfg['user']}>"
+    msg["To"] = ", ".join(cfg["to"])
+    msg.set_content(
+        "El cliente corrigió sus datos en el chat. Usa estos datos para comunicarte:\n\n"
+        f"Cliente: {cliente['nombre']}\nTeléfono: {tel}\nCorreo: {cliente.get('correo') or '—'}\n"
+        f"Empresa: {cliente.get('empresa') or '—'}\nSolicitudes: {lista}\n\n"
+        f"Llamar: tel:{tel}\nWhatsApp: https://wa.me/{'52' + tel if len(tel) == 10 else tel}"
+        + (f"\nPanel: {cfg['panel']}" if cfg["panel"] else "")
+    )
+    threading.Thread(target=_enviar, args=(msg, cfg), daemon=True).start()
+
+
 def enviar_prueba():
     """Manda un correo de prueba de forma síncrona. Devuelve (ok, mensaje)."""
     cfg = _config()

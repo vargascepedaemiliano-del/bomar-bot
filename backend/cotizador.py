@@ -47,6 +47,46 @@ def es_palabra_clave(texto: str) -> bool:
     return t in ("nueva cotizacion", "otra cotizacion", "quiero una nueva cotizacion", "nueva")
 
 
+_SI = ("si", "sí", "correcto", "correctos", "es correcto", "son correctos", "confirmo", "confirmado", "asi es",
+       "ok", "okay", "va", "claro", "afirmativo", "exacto", "todo bien", "esta bien", "de acuerdo", "adelante",
+       "perfecto", "listo", "registralo", "registrala", "procede")
+_NO = re.compile(r"\b(no|pero|espera|mal|incorrect\w*|corrig\w*|correg\w*|cambi\w*|equivoc\w*|error\w*|otro)\b")
+
+
+def es_confirmacion(texto: str) -> bool:
+    """True si el mensaje del cliente es un 'sí' claro, sin correcciones."""
+    t = re.sub(r"[^a-z0-9 ]", " ", _sin_acentos(texto.lower()))
+    t = re.sub(r"\s+", " ", t).strip()
+    if not t or len(t) > 80:
+        return False
+    if _NO.search(t):
+        return False
+    return any(t == x or t.startswith(x + " ") for x in (_sin_acentos(y) for y in _SI))
+
+
+def validar_telefono(original: str):
+    """Devuelve (telefono_normalizado, error)."""
+    crudo = (original or "").strip()
+    tel = db.normalizar_telefono(crudo)
+    extranjero = crudo.startswith("+") and not crudo.replace(" ", "").startswith("+52")
+    if extranjero:
+        if not 8 <= len(tel) <= 15:
+            return None, "El teléfono internacional no parece válido. Pídeselo de nuevo con lada de país."
+        return tel, None
+    if len(tel) != 10:
+        return None, (f"El teléfono tiene {len(tel)} dígitos y en México deben ser 10 (lada + número). "
+                      "Dile cuántos dígitos tiene el que escribió y pídele que lo revise.")
+    if tel[0] in "01":
+        return None, "Ese teléfono no parece válido (en México no empieza con 0 ni 1). Pídele que lo revise."
+    if len(set(tel)) <= 2 or tel in "01234567890123456789" or tel in "98765432109876543210":
+        return None, "Ese teléfono parece de prueba o falso (dígitos repetidos o seguidos). Pídele su número real."
+    return tel, None
+
+
+def telefono_bonito(tel: str) -> str:
+    return f"{tel[:2]} {tel[2:6]} {tel[6:]}" if len(tel) == 10 else tel
+
+
 def _dinero(v):
     return f"${v:,.2f} MXN"
 
@@ -90,10 +130,18 @@ Que cada cliente deje una pre-cotización completa y bien explicada, para que el
 CÓMO ATENDER
 1. Entiende qué necesita el cliente. Explícale qué servicio de BOMAR le sirve, usando solo la información de abajo.
 2. Reúne lo que el dueño necesita para cotizar, con preguntas cortas (una o dos por mensaje): qué servicio, cantidad o tamaño (equipos, km, m2, kVA, etc.), ubicación exacta del proyecto (ciudad y lugar), una descripción del alcance (tensión, capacidad, estado actual del equipo) y para cuándo lo necesita.
-3. Pide su nombre y su teléfono (WhatsApp de preferencia). El correo y la empresa son opcionales: pregúntalos una vez, sin insistir. En cuanto tengas nombre y teléfono, usa `registrar_cliente`.
-4. Antes de registrar, resume en una lista corta lo que se va a cotizar y pide que lo confirme.
-5. Con la confirmación, usa `registrar_cotizacion`. Después dale al cliente: el folio, el resumen de su solicitud, el aproximado SOLO si la herramienta lo devolvió, y explícale que el dueño de BOMAR se comunicará con él para darle la cotización real y final. Termina diciéndole que si desea otra cotización, puede escribir {PALABRA_CLAVE}.
-6. Una sola cotización por folio. Si el cliente pide algo totalmente distinto después de registrar, sugiérele escribir {PALABRA_CLAVE}.
+3. Pide su nombre y su teléfono (WhatsApp de preferencia, 10 dígitos). El correo y la empresa son opcionales: pregúntalos una vez, sin insistir.
+4. CONFIRMACIÓN DE DATOS (obligatoria): antes de registrar, muéstrale sus datos en una lista, con el teléfono en formato 81 1234 5678:
+   - Nombre: ...
+   - Teléfono: ...
+   - Correo: ... (si lo dio)
+   - Empresa: ... (si la dio)
+   y pregunta exactamente: ¿Son correctos estos datos?
+   Solo cuando responda que sí, usa `registrar_cliente`. Si corrige algo, vuelve a mostrar los datos corregidos y pregunta otra vez.
+5. CONFIRMACIÓN DE LA SOLICITUD (obligatoria): resume en una lista lo que se va a cotizar (servicio, cantidad, ubicación, descripción) y pregunta exactamente: ¿Confirma que registre esta solicitud?
+   Puedes pedir ambas confirmaciones en el mismo mensaje si ya tienes todo. Solo cuando responda que sí, usa `registrar_cotizacion`.
+6. Después de registrar, dale al cliente: el folio, el resumen de su solicitud, el aproximado SOLO si la herramienta lo devolvió, y explícale que el dueño de BOMAR se comunicará con él para darle la cotización real y final. Termina diciéndole que si desea otra cotización, puede escribir {PALABRA_CLAVE}.
+7. Una sola cotización por folio. Si el cliente pide algo totalmente distinto después de registrar, sugiérele escribir {PALABRA_CLAVE}.
 
 PRECIOS (MUY IMPORTANTE)
 - Los precios de BOMAR varían mucho según el servicio, el lugar, la distancia y el alcance del proyecto. Por eso el chat NUNCA da una cotización final.
@@ -102,6 +150,11 @@ PRECIOS (MUY IMPORTANTE)
 - Si un servicio no tiene aproximado, no des ninguna cifra ni rango: explica que BOMAR cotiza según el proyecto.
 - Si el cliente insiste en un precio, explica amablemente por qué depende del proyecto y que el dueño lo contactará pronto con la cotización exacta.
 - NUNCA inventes precios, descuentos, tiempos de entrega ni garantías.
+
+VALIDACIÓN Y CORRECCIONES
+- Si una herramienta responde que el teléfono o el correo no son válidos, explícale al cliente qué está mal (por ejemplo, cuántos dígitos tiene) y pídeselo de nuevo con amabilidad.
+- Si una herramienta responde requiere_confirmacion, todavía no se guardó nada: muestra los datos o el resumen y pide la confirmación.
+- Si después de registrar el cliente dice que algún dato estaba mal, muéstrale el dato corregido, pide confirmación y vuelve a usar `registrar_cliente`: el sistema corrige el mismo registro.
 
 REGLAS
 - No inventes servicios, certificaciones, clientes, ubicación, horarios ni datos de la empresa. Si no lo sabes, dilo y ofrece que un ingeniero lo contacte.
@@ -192,24 +245,50 @@ HERRAMIENTAS = [
 
 
 def ejecutar_registrar_cliente(session_id: str, datos: dict) -> dict:
-    nombre = str(datos.get("nombre", "")).strip()[:120]
-    telefono = db.normalizar_telefono(str(datos.get("telefono", "")))
-    correo = str(datos.get("correo", "") or "").strip()[:120]
+    nombre = re.sub(r"\s+", " ", str(datos.get("nombre", ""))).strip()[:120]
+    correo = str(datos.get("correo", "") or "").strip().lower()[:120]
     empresa = str(datos.get("empresa", "") or "").strip()[:120]
 
-    if len(nombre) < 2:
-        return {"ok": False, "error": "Falta el nombre del cliente."}
-    if not 10 <= len(telefono) <= 13:
-        return {"ok": False, "error": "El teléfono no parece válido (debe tener 10 dígitos). Pídeselo de nuevo."}
-    if correo and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", correo):
-        return {"ok": False, "error": "El correo no parece válido. Pídeselo de nuevo o continúa sin correo."}
+    if len(nombre) < 2 or not re.search(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]", nombre):
+        return {"ok": False, "error": "Falta el nombre del cliente o no parece un nombre. Pídeselo."}
+    telefono, error = validar_telefono(str(datos.get("telefono", "")))
+    if error:
+        return {"ok": False, "error": error}
+    if correo and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", correo):
+        return {"ok": False, "error": "El correo no parece válido. Pídeselo de nuevo, o continúa sin correo si no quiere darlo."}
 
-    cliente, es_nuevo = db.registrar_cliente(session_id, nombre, telefono, correo, empresa)
+    # Confirmación obligatoria: el cliente tuvo que ver sus datos y decir que sí
+    ultimo_cliente, ultimo_bot = db.ultimo_intercambio(session_id)
+    mostro_telefono = telefono in re.sub(r"\D", "", ultimo_bot)
+    if not (mostro_telefono and es_confirmacion(ultimo_cliente)):
+        return {
+            "ok": False,
+            "requiere_confirmacion": True,
+            "error": ("Todavía NO está registrado. Primero muéstrale sus datos tal como los vas a guardar y pregúntale "
+                      "exactamente: ¿Son correctos estos datos? Regístralo solo cuando responda que sí."),
+            "datos_a_confirmar": {
+                "nombre": nombre,
+                "telefono": telefono_bonito(telefono),
+                "correo": correo or "(no dio)",
+                "empresa": empresa or "(no dio)",
+            },
+        }
+
+    cliente, es_nuevo, fue_correccion = db.registrar_cliente(session_id, nombre, telefono, correo, empresa)
     previas = db.folios_de_cliente(cliente["id"])
+    if fue_correccion:
+        mensaje = "Datos corregidos en el mismo cliente (no se creó otro). Confírmale que ya quedaron bien."
+        if previas:
+            notificaciones.avisar_correccion(cliente, previas)
+    elif es_nuevo:
+        mensaje = "Cliente registrado."
+    else:
+        mensaje = "Cliente que ya había contactado a BOMAR antes; salúdalo como cliente conocido."
     return {
         "ok": True,
         "cliente_nuevo": es_nuevo,
-        "mensaje": "Cliente registrado." if es_nuevo else "Cliente que ya había contactado a BOMAR antes; salúdalo como cliente conocido.",
+        "correccion": fue_correccion,
+        "mensaje": mensaje,
         "cotizaciones_anteriores": [f"{f['folio']}: {f['servicio']}" for f in previas],
     }
 
@@ -227,6 +306,16 @@ def ejecutar_registrar_cotizacion(session_id: str, datos: dict) -> dict:
         return {"ok": False, "error": "Falta la descripción del proyecto."}
     if not isinstance(conceptos, list) or not conceptos:
         return {"ok": False, "error": "Indica al menos un servicio del catálogo en 'conceptos'."}
+
+    ultimo_cliente, _ = db.ultimo_intercambio(session_id)
+    if not es_confirmacion(ultimo_cliente):
+        return {
+            "ok": False,
+            "requiere_confirmacion": True,
+            "error": ("Todavía NO está registrada. Muéstrale el resumen de la solicitud (servicio, cantidad, ubicación, "
+                      "descripción) y pregúntale exactamente: ¿Confirma que registre esta solicitud? "
+                      "Regístrala solo cuando responda que sí."),
+        }
 
     catalogo = {s["id"]: s for s in db.obtener_catalogo(solo_activos=True)}
     lineas, tot_min, tot_max, hay_precio, revision = [], 0.0, 0.0, False, False

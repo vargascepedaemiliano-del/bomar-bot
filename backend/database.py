@@ -254,12 +254,30 @@ def mensajes_cliente_en_sesion(session_id):
 def registrar_cliente(session_id, nombre, telefono, correo="", empresa=""):
     """
     Crea o actualiza el cliente (se identifica por teléfono) y lo liga al chat.
-    Devuelve (cliente_dict, es_nuevo).
+    Si este chat ya tenía un cliente y el teléfono cambió, se trata como una
+    CORRECCIÓN: se arregla el mismo cliente en lugar de crear uno duplicado.
+    Devuelve (cliente_dict, es_nuevo, fue_correccion).
     """
     tel = normalizar_telefono(telefono)
     with conexion() as c:
+        c.execute("INSERT OR IGNORE INTO sesiones (session_id, creado) VALUES (?, ?)", (session_id, ahora()))
+        actual = c.execute(
+            "SELECT cl.* FROM sesiones s JOIN clientes cl ON cl.id = s.cliente_id WHERE s.session_id = ?",
+            (session_id,),
+        ).fetchone()
         existente = c.execute("SELECT * FROM clientes WHERE telefono = ?", (tel,)).fetchone()
-        if existente:
+        fue_correccion = False
+
+        if actual and actual["telefono"] != tel and not existente:
+            # Corrección del teléfono (o de los datos) del mismo cliente
+            cid = actual["id"]
+            c.execute(
+                """UPDATE clientes SET nombre = ?, telefono = ?, correo = COALESCE(NULLIF(?, ''), correo),
+                   empresa = COALESCE(NULLIF(?, ''), empresa), actualizado = ? WHERE id = ?""",
+                (nombre, tel, correo, empresa, ahora(), cid),
+            )
+            es_nuevo, fue_correccion = False, True
+        elif existente:
             cid = existente["id"]
             c.execute(
                 """UPDATE clientes SET nombre = ?, correo = COALESCE(NULLIF(?, ''), correo),
@@ -267,16 +285,48 @@ def registrar_cliente(session_id, nombre, telefono, correo="", empresa=""):
                 (nombre, correo, empresa, ahora(), cid),
             )
             es_nuevo = False
+            if actual and actual["id"] != cid:
+                # El número corregido ya pertenecía a otro cliente: se mueve todo lo de este chat a ese cliente
+                c.execute("UPDATE solicitudes SET cliente_id = ? WHERE session_id = ?", (cid, session_id))
+                fue_correccion = True
+                otras = c.execute(
+                    "SELECT (SELECT COUNT(*) FROM sesiones WHERE cliente_id = ? AND session_id != ?) + "
+                    "(SELECT COUNT(*) FROM solicitudes WHERE cliente_id = ?)",
+                    (actual["id"], session_id, actual["id"]),
+                ).fetchone()[0]
+                c.execute("UPDATE sesiones SET cliente_id = ? WHERE session_id = ?", (cid, session_id))
+                if otras == 0:
+                    c.execute("DELETE FROM clientes WHERE id = ?", (actual["id"],))
         else:
             cid = c.execute(
                 "INSERT INTO clientes (nombre, telefono, correo, empresa, creado, actualizado) VALUES (?, ?, ?, ?, ?, ?)",
                 (nombre, tel, correo, empresa, ahora(), ahora()),
             ).lastrowid
             es_nuevo = True
-        c.execute("INSERT OR IGNORE INTO sesiones (session_id, creado) VALUES (?, ?)", (session_id, ahora()))
+
         c.execute("UPDATE sesiones SET cliente_id = ? WHERE session_id = ?", (cid, session_id))
         cliente = dict(c.execute("SELECT * FROM clientes WHERE id = ?", (cid,)).fetchone())
-    return cliente, es_nuevo
+    return cliente, es_nuevo, fue_correccion
+
+
+def ultimo_intercambio(session_id):
+    """
+    Devuelve (último mensaje del cliente, mensaje del bot justo antes de ese).
+    Sirve para comprobar que el cliente confirmó lo que el bot le mostró.
+    """
+    with conexion() as c:
+        filas = c.execute(
+            "SELECT remitente, mensaje FROM conversaciones WHERE session_id = ? ORDER BY id DESC LIMIT 6",
+            (session_id,),
+        ).fetchall()
+    cliente_msg, bot_msg, visto_cliente = "", "", False
+    for f in filas:
+        if not visto_cliente and f["remitente"] == "cliente":
+            cliente_msg, visto_cliente = f["mensaje"], True
+        elif visto_cliente and f["remitente"] == "bot":
+            bot_msg = f["mensaje"]
+            break
+    return cliente_msg, bot_msg
 
 
 def cliente_de_sesion(session_id):

@@ -176,6 +176,18 @@
     return t;
   }
 
+  function chipsConfirmar() {
+    var w = document.createElement("div");
+    w.className = "gc-chips";
+    [["Sí, es correcto", "Sí, es correcto"], ["No, quiero corregir", "No, quiero corregir un dato"]].forEach(function (op) {
+      var bt = document.createElement("button");
+      bt.type = "button"; bt.className = "gc-chip"; bt.textContent = op[0];
+      bt.addEventListener("click", function () { w.remove(); enviar(op[1]); });
+      w.appendChild(bt);
+    });
+    msgs.appendChild(w); scrollDown();
+  }
+
   function chipNueva() {
     var w = document.createElement("div");
     w.className = "gc-chips";
@@ -297,6 +309,7 @@
     if (!texto || busy) return;
     busy = true; sendBtn.disabled = true; btnNuevo.disabled = true;
     if (chipsEl) { chipsEl.remove(); chipsEl = null; }
+    Array.prototype.forEach.call(msgs.querySelectorAll(".gc-chips"), function (c) { c.remove(); });
     var id = actual;
     registrarChat(id, texto);
     addMsg(texto, "user");
@@ -324,7 +337,8 @@
       typing.remove();
       if (cargado === id) {
         addMsg(data.reply, "bot");
-        if (/BOM-\d{4,}/.test(data.reply)) chipNueva();
+        if (/son correctos estos datos|confirma que registre esta solicitud/i.test(data.reply)) chipsConfirmar();
+        else if (/BOM-\d{4,}/.test(data.reply)) chipNueva();
       }
     } catch (err) {
       typing.remove();
